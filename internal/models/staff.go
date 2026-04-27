@@ -6,6 +6,7 @@ import (
 )
 
 type Staff struct {
+	Base
 	ID         uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	BusinessID uuid.UUID `gorm:"type:uuid;index" json:"businessId"`
 	Business   Business  `gorm:"foreignKey:BusinessID" json:"business"`

@@ -8,7 +8,7 @@ import (
 )
 
 type appointment struct {
-	ID           uuid.UUID  `gorm:"type:uuid;primaryKey" json:"id"`
+	Base
 	BusinessID   uuid.UUID  `gorm:"type:uuid;index" json:"businessId"`
 	StaffID      *uuid.UUID `gorm:"type:uuid;index" json:"staffId"`
 	ServiceID    uuid.UUID  `gorm:"type:uuid;index" json:"serviceId"`
@@ -19,7 +19,6 @@ type appointment struct {
 	Phone        string     `json:"phone"`
 	Time         time.Time  `json:"time"` // recommended over string
 	Status       string     `gorm:"type:varchar(20);check:status IN ('booked','cancelled','done','missed')" json:"status"`
-	CreatedAt    time.Time  `json:"createdAt"`
 }
 
 func (a *appointment) BeforeCreate(tx *gorm.DB) (err error) {

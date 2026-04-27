@@ -6,6 +6,7 @@ import (
 )
 
 type Service struct {
+	Base
 	ID         uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	Name       string    `gorm:"uniqueIndex" json:"name"`
 	BusinessID uuid.UUID `gorm:"type:uuid;index" json:"businessId"`

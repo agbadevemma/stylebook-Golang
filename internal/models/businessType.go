@@ -6,7 +6,8 @@ import (
 )
 
 type BusinessType struct {
-	ID   uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	Base
+
 	Name string    `gorm:"unique;not null" json:"name"`
 }
 

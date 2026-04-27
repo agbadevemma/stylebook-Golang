@@ -8,7 +8,7 @@ import (
 )
 
 type Business struct {
-	ID             uuid.UUID    `gorm:"type:uuid;primaryKey" json:"id"`
+	Base
 	Name           string       `json:"name"`
 	Phone          string       `gorm:"uniqueIndex" json:"phone"`
 	BusinessTypeID uuid.UUID    `gorm:"type:uuid;index" json:"businessTypeId"`
