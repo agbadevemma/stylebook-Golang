@@ -1,0 +1,36 @@
+package db
+
+import (
+	"log"
+	"os"
+	"time"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+)
+
+type Database struct {
+	DB *gorm.DB
+}
+
+func Connect() *Database {
+	dsn := os.Getenv("DATABASE_URL")
+	conn, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal("failed to connect database:", err)
+	}
+
+	sqlDB, err := conn.DB()
+	if err != nil {
+		log.Fatal("failed to get SQL DB:", err)
+	}
+
+	sqlDB.SetMaxOpenConns(25)
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	log.Println("Database connected using URL")
+	return &Database{
+		DB: conn,
+	}
+}
