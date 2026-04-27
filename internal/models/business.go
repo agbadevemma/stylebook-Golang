@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type Business struct {
@@ -16,11 +15,4 @@ type Business struct {
 	Plan           string       `json:"plan"`
 	Status         string       `gorm:"index" json:"status"`
 	PaidUntil      time.Time    `json:"paidUntil"`
-	CreatedAt      time.Time    `json:"createdAt"`
-	UpdatedAt      time.Time    `json:"updatedAt"`
-}
-
-func (b *Business) BeforeCreate(tx *gorm.DB) (err error) {
-	b.ID = uuid.New()
-	return
 }
