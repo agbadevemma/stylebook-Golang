@@ -6,10 +6,10 @@ import (
 
 type Staff struct {
 	Base
-	BusinessID uuid.UUID `gorm:"uniqueIndex:idx_business_phone;uniqueIndex:idx_business_email" json:"businessId"`
+	BusinessID uuid.UUID `gorm:"type:uuid;not null;index:idx_business_phone,unique;index:idx_business_email,unique" json:"businessId"`
 	Business   Business  `gorm:"foreignKey:BusinessID" json:"business"`
-	Name       string    `json:"name"`
+	Name       string    `gorm:"not null" json:"name"`
 	Role       string    `json:"role"`
-	Phone      string    `gorm:"uniqueIndex:idx_business_phone" json:"phone"`
-	Email      string    `gorm:"uniqueIndex:idx_business_email" json:"email"`
+	Phone      string    `gorm:"not null;index:idx_business_phone,unique" json:"phone"`
+	Email      string    `gorm:"not null;index:idx_business_email,unique" json:"email"`
 }
