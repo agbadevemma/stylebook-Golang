@@ -9,3 +9,10 @@ const (
 	Missed    BookingStatus = "missed"
 )
 
+type PaymentStatus string
+
+const (
+	Active    PaymentStatus = "paid"
+	Overdue   PaymentStatus = "unpaid"
+	Suspended PaymentStatus = "suspended"
+)
