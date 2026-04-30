@@ -7,20 +7,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stylebookgo/agbadevemma/internal/config"
 	"github.com/stylebookgo/agbadevemma/internal/db"
+	"github.com/stylebookgo/agbadevemma/internal/routes"
 )
 
 func main() {
 	config.LoadEnv()
 	database := db.Connect()
-	db.Migrate(database)
+
+	if os.Getenv("RUN_MIGRATIONS") == "true" {
+		db.Migrate(database)
+	}
 
 	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
-
+	routes.SetupRoutes(r)
 	port := fmt.Sprintf(":%s", os.Getenv("PORT"))
 	r.Run(port) // listen and serve on
 	fmt.Println("Starting server on port", port, "...")

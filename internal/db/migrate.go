@@ -15,6 +15,7 @@ func Migrate(db *Database) {
 		&models.Appointment{},
 		&models.BusinessType{},
 		&models.AppointmentService{},
+		&models.WhatsAppSession{},
 	)
 
 	if err != nil {

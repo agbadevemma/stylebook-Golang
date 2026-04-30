@@ -16,3 +16,13 @@ const (
 	Overdue   PaymentStatus = "unpaid"
 	Suspended PaymentStatus = "suspended"
 )
+
+type FlowState string
+
+const (
+	StateStart   FlowState = "start"
+	StateService FlowState = "service"
+	StateStaff   FlowState = "staff"
+	StateTime    FlowState = "time"
+	StateConfirm FlowState = "confirm"
+)
