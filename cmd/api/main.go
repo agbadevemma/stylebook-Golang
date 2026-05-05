@@ -19,7 +19,7 @@ func main() {
 	}
 
 	r := gin.Default()
-	routes.SetupRoutes(r)
+	routes.SetupRoutes(r, database.DB)
 	port := fmt.Sprintf(":%s", os.Getenv("PORT"))
 	r.Run(port) // listen and serve on
 	fmt.Println("Starting server on port", port, "...")

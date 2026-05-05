@@ -2,24 +2,19 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/whatsapp"
+	"gorm.io/gorm"
 )
 
-func SetupRoutes(r *gin.Engine) {
+func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 	api := r.Group("/api/v1/")
 
-	whatsappHandler := whatsapp.Module()
-	whatappRoutes := api.Group("/whatsapp")
-	{
-		whatappRoutes.GET("/webhook", whatsappHandler.VerifyWebhook)
-		whatappRoutes.POST("/webhook", whatsappHandler.Webhook)
-	}
+	whatsappHandler := whatsapp.NewModule()
+	whatsappHandler.ModuleRoutes(api)
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
+	businessHandler := business.NewModule(db)
+	businessHandler.ModuleRoutes(api)
 
 }
