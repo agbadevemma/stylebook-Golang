@@ -2,9 +2,15 @@ package whatsapp
 
 import (
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
-func Module() *Handler {
+type Module struct {
+	handler *Handler
+}
+
+func NewModule() *Module {
 	whatsappFlow := NewFlow()
 	whatsappSession := NewSessionService()
 	whatsappClient := NewClient(
@@ -13,5 +19,14 @@ func Module() *Handler {
 	)
 	whatappService := NewService(whatsappFlow, whatsappSession, whatsappClient)
 	whatsappHandler := NewHandler(whatappService)
-	return whatsappHandler
+	return &Module{handler: whatsappHandler}
+}
+
+func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
+	whatappRoutes := api.Group("/whatsapp")
+	{
+		whatappRoutes.GET("/webhook", m.handler.VerifyWebhook)
+		whatappRoutes.POST("/webhook", m.handler.Webhook)
+	}
+
 }

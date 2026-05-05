@@ -18,19 +18,33 @@ func NewClient(token, phoneId string) *Client {
 	return &Client{Token: token, PhoneID: phoneId}
 }
 
+type WhatsAppPayload struct {
+	MessagingProduct string          `json:"messaging_product"`
+	RecipientType    string          `json:"recipient_type"`
+	To               string          `json:"to"`
+	Type             string          `json:"type"`
+	Text             WhatsAppMessage `json:"text"`
+}
+
+type WhatsAppMessage struct {
+	PreviewURL bool   `json:"preview_url"`
+	Body       string `json:"body"`
+}
+
 func (c *Client) SendText(to, message string) error {
-	url := fmt.Sprintf("%v/%v/messages", os.Getenv("FACEBOOK_URL"), c.PhoneID)
-	fmt.Println("url", url)
-	payload := map[string]any{
-		"messaging_product": "whatsapp",
-		"recipient_type":    "individual",
-		"to":                to,
-		"type":              "text",
-		"text": map[string]any{
-			"preview_url": false,
-			"body":        message,
+
+	url := fmt.Sprintf("%v/%v/messages", os.Getenv("FACEBOOK_URL"), c.PhoneID) 
+	payload := WhatsAppPayload{
+		MessagingProduct: "whatsapp",
+		RecipientType:    "individual",
+		To:               to,
+		Type:             "text",
+		Text: WhatsAppMessage{
+			PreviewURL: false,
+			Body:       message,
 		},
 	}
+
 	body, _ := json.Marshal(payload)
 	req, _ := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
 	req.Header.Set("Authorization", "Bearer "+c.Token)
