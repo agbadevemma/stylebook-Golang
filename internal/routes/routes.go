@@ -11,10 +11,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 	api := r.Group("/api/v1/")
 
-	whatsappHandler := whatsapp.NewModule()
-	whatsappHandler.ModuleRoutes(api)
-
-	businessHandler := business.NewModule(db)
-	businessHandler.ModuleRoutes(api)
+	whatsapp.NewModule().ModuleRoutes(api)
+	business.NewModule(db).ModuleRoutes(api)
 
 }

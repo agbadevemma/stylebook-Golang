@@ -16,6 +16,6 @@ func NewModule(db *gorm.DB) *Module {
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	businessRoutes := api.Group("/business")
 	{
-		businessRoutes.GET("/get", m.handler.GetBusiness)
+		businessRoutes.GET("/", m.handler.GetBusiness)
 	}
 }

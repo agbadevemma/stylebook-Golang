@@ -2,6 +2,7 @@ package business
 
 import (
 	"context"
+	"errors"
 
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"gorm.io/gorm"
@@ -19,12 +20,21 @@ func (r *Repository) CreateNewBusiness(ctx context.Context, business models.Busi
 	return r.db.WithContext(ctx).Create(&business).Error
 }
 
-func (r *Repository) GetBusiness(ctx context.Context) (models.Business, error) {
-	var business models.Business
-	return business, r.db.WithContext(ctx).First(&business).Error
+func (r *Repository) GetAllBusinesses(ctx context.Context) ([]models.Business, error) {
+	var business []models.Business
+	return business, r.db.WithContext(ctx).Find(&business).Error
 }
 
 func (r *Repository) GetBusinessesByEmail(ctx context.Context, email string) (models.Business, error) {
 	var business models.Business
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&business).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.Business{}, nil
+		}
+		return models.Business{}, err
+	}
+
 	return business, r.db.WithContext(ctx).Where("email = ?", email).First(&business).Error
 }

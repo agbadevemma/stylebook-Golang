@@ -19,7 +19,7 @@ func (h *Handler) GetBusiness(c *gin.Context) {
 	business, err := h.service.GetBusiness(c)
 	if err != nil {
 		log.Printf("err: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, business)

@@ -14,7 +14,8 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) GetBusiness(ctx context.Context) (models.Business, error) {
-	business, err := s.repo.GetBusiness(ctx)
+func (s *Service) GetBusiness(ctx context.Context) ([]models.Business, error) {
+	business, err := s.repo.GetAllBusinesses(ctx)
+
 	return business, err
 }
