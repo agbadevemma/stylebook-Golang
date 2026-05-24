@@ -30,3 +30,19 @@ func (h *Handler) Signup(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, utils.SuccessResponse("User Created", nil))
 }
+
+func (h *Handler) Login(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+	token, err := h.service.Login(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusCreated, utils.SuccessResponse("User Created", token))
+
+}
