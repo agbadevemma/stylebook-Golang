@@ -8,14 +8,10 @@ import (
 
 func Migrate(db *Database) {
 	err := db.DB.AutoMigrate(
-		&models.Business{},
-		&models.Service{},
-		&models.Staff{},
-		&models.Customer{},
-		&models.Appointment{},
-		&models.BusinessType{},
-		&models.AppointmentService{},
-		&models.WhatsAppSession{},
+		&models.Barber{},
+		&models.Booking{},
+		&models.Client{},
+		&models.User{},
 	)
 
 	if err != nil {
