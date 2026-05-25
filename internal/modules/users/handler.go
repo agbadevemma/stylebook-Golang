@@ -22,6 +22,11 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
+	if req.Role != utils.Admin {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid role"))
+		return
+	}
+
 	err := h.service.Signup(&req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))

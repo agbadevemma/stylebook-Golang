@@ -21,7 +21,7 @@ func NewModule(db *gorm.DB) *Module {
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	user := api.Group("/auth/user")
 	{
-		user.GET("/signup", m.handler.Signup)
+		user.POST("/signup", m.handler.Signup)
 		user.POST("/login", m.handler.Login)
 	}
 
