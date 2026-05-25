@@ -2,6 +2,7 @@ package users
 
 import (
 	"github.com/stylebookgo/agbadevemma/internal/models"
+
 	"gorm.io/gorm"
 )
 
@@ -13,8 +14,8 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) CreateUser(user *models.User) error {
-	return r.db.Create(user).Error
+func (r *Repository) CreateUser(tx *gorm.DB, user *models.User) error {
+	return tx.Create(user).Error
 }
 
 func (r *Repository) GetUserByPhone(phone string) (*models.User, error) {

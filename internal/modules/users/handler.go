@@ -17,6 +17,7 @@ func NewHandler(service *Service) *Handler {
 
 func (h *Handler) Signup(c *gin.Context) {
 	var req SignupRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ValidationError(c, err)
 		return
@@ -28,6 +29,7 @@ func (h *Handler) Signup(c *gin.Context) {
 	}
 
 	err := h.service.Signup(&req)
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
@@ -48,6 +50,6 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, utils.SuccessResponse("User Created", token))
+	c.JSON(http.StatusCreated, utils.SuccessResponse("Login Successfully", token))
 
 }

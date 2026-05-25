@@ -2,6 +2,7 @@ package users
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"gorm.io/gorm"
 )
 
@@ -9,10 +10,10 @@ type Module struct {
 	handler *Handler
 }
 
-func NewModule(db *gorm.DB) *Module {
+func NewModule(db *gorm.DB, bus business.BusinessWriter) *Module {
 
 	userRepo := NewRepository(db)
-	userService := NewService(userRepo)
+	userService := NewService(userRepo, bus)
 	userHadler := NewHandler(userService)
 
 	return &Module{handler: userHadler}

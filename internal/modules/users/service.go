@@ -4,16 +4,25 @@ import (
 	"errors"
 
 	"github.com/stylebookgo/agbadevemma/internal/models"
+	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
+type CreateUser struct {
+	Name     string
+	Email    string
+	Phone    string
+	Role     utils.UserRole
+	Password string
+}
 type Service struct {
-	repo *Repository
+	repo           *Repository
+	businessWriter business.BusinessWriter
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, bus business.BusinessWriter) *Service {
+	return &Service{repo: repo, businessWriter: bus}
 }
 
 func (s *Service) Signup(req *SignupRequest) error {
@@ -21,6 +30,18 @@ func (s *Service) Signup(req *SignupRequest) error {
 	if err == nil {
 		return errors.New("user with this email already exists")
 	}
+	tx := s.repo.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
 
 	if err != nil {
@@ -35,7 +56,21 @@ func (s *Service) Signup(req *SignupRequest) error {
 		Password: string(hashedPassword),
 	}
 
-	return s.repo.CreateUser(user)
+	if err := s.repo.CreateUser(tx, user); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	business := &models.Business{
+		Name:    req.BusinessName,
+		OwnerID: user.ID,
+	}
+	if err := s.businessWriter.CreateBusiness(tx, business); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 func (s *Service) Login(req *LoginRequest) (string, error) {
