@@ -1,13 +1,21 @@
 package users
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
 
 type Module struct {
 	handler *Handler
 }
 
-func NewModule(handler *Handler) *Module {
-	return &Module{handler: handler}
+func NewModule(db *gorm.DB) *Module {
+
+	userRepo := NewRepository(db)
+	userService := NewService(userRepo)
+	userHadler := NewHandler(userService)
+
+	return &Module{handler: userHadler}
 }
 
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {

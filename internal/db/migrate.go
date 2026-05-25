@@ -11,6 +11,8 @@ func Migrate(db *Database) {
 		&models.Barber{},
 		&models.Booking{},
 		&models.Client{},
+		&models.Business{},
+		&models.Service{},
 		&models.User{},
 	)
 
