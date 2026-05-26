@@ -11,6 +11,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 	api := r.Group("/api/v1/")
 	businessRepo := business.NewRepository(db)
+
 	users.NewModule(db, businessRepo).ModuleRoutes(api)
 
 }

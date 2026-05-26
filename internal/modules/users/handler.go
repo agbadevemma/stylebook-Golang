@@ -50,6 +50,6 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, utils.SuccessResponse("Login Successfully", token))
+	c.JSON(http.StatusOK, utils.SuccessResponse("Login Successfully", token))
 
 }

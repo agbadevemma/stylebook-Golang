@@ -13,8 +13,8 @@ type Booking struct {
 	Client        Client              `json:"client" gorm:"foreignKey:ClientID"`
 	BusinessID    uuid.UUID           `json:"business_id" gorm:"type:uuid;not null;index"`
 	Business      Business            `json:"business" gorm:"foreignKey:BusinessID"`
-	BarberID      *uuid.UUID           `json:"barber_id" gorm:"type:uuid"`
-	Barber        *Barber              `json:"barber" gorm:"foreignKey:BarberID"`
+	BarberID      *uuid.UUID          `json:"barber_id" gorm:"type:uuid"`
+	Barber        *User               `json:"user" gorm:"foreignKey:BarberID"`
 	ServiceID     uuid.UUID           `json:"service_id" gorm:"type:uuid;not null;index"`
 	Service       Service             `json:"service" gorm:"foreignKey:ServiceID"`
 	BookingTime   time.Time           `json:"booking_time" gorm:"not null"`

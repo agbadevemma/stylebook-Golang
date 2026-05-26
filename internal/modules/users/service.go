@@ -21,23 +21,29 @@ func NewService(repo *Repository, bus business.BusinessWriter) *Service {
 }
 
 func (s *Service) Signup(req *SignupRequest) error {
-
-	_, err := s.repo.GetUserbyEmail(req.Email)
-	if err == nil {
+	
+	if _, err := s.repo.GetUserbyEmail(req.Email); err == nil {
 		return errors.New("user with this email already exists")
 	}
 
-	_, err = s.repo.GetUserByPhone(req.Phone)
-	if err == nil {
-		return errors.New("user with this Phone number already exists")
+	if _, err := s.repo.GetUserByPhone(req.Phone); err == nil {
+		return errors.New("user with this phone number already exists")
 	}
 
-	if req.BusinessID != uuid.Nil && req.Role == utils.Barber {
-		_, err := s.businessWriter.GetBusinessByID(req.BusinessID)
-		if err != nil {
+	var businessID *uuid.UUID
+
+	if req.Role == utils.Barber {
+		if req.BusinessID == uuid.Nil {
+			return errors.New("business ID is required for barbers")
+		}
+
+		if _, err := s.businessWriter.GetBusinessByID(req.BusinessID); err != nil {
 			return errors.New("business not found")
 		}
+
+		businessID = &req.BusinessID
 	}
+
 
 	tx := s.repo.db.Begin()
 	if tx.Error != nil {
@@ -51,19 +57,23 @@ func (s *Service) Signup(req *SignupRequest) error {
 		}
 	}()
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
-
+	hashedPassword, err := bcrypt.GenerateFromPassword(
+		[]byte(req.Password),
+		bcrypt.DefaultCost,
+	)
 	if err != nil {
+		tx.Rollback()
 		return errors.New("failed to hash password")
 	}
 
+	
 	user := &models.User{
 		Name:       req.Name,
 		Email:      req.Email,
 		Phone:      req.Phone,
 		Role:       req.Role,
 		Password:   string(hashedPassword),
-		BusinessID: &req.BusinessID,
+		BusinessID: businessID,
 	}
 
 	if err := s.repo.CreateUser(tx, user); err != nil {
@@ -71,17 +81,24 @@ func (s *Service) Signup(req *SignupRequest) error {
 		return err
 	}
 
-	business := &models.Business{
-		Name:    req.BusinessName,
-		OwnerID: user.ID,
+	if req.Role == utils.Admin {
+		business := &models.Business{
+			Name:    req.BusinessName,
+			OwnerID: user.ID,
+		}
+
+		if err := s.businessWriter.CreateBusiness(tx, business); err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
-	if err := s.businessWriter.CreateBusiness(tx, business); err != nil {
+	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	return tx.Commit().Error
+	return nil
 }
 
 func (s *Service) Login(req *LoginRequest) (string, error) {
