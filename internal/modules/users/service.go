@@ -9,13 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type CreateUser struct {
-	Name     string
-	Email    string
-	Phone    string
-	Role     utils.UserRole
-	Password string
-}
+
 type Service struct {
 	repo           *Repository
 	businessWriter business.BusinessWriter
