@@ -3,9 +3,10 @@ package utils
 type BookingStatus string
 
 const (
-	Booked    BookingStatus = "booked"
+	Pending   BookingStatus = "pending"
+	Confirmed BookingStatus = "confirmed"
 	Cancelled BookingStatus = "cancelled"
-	Done      BookingStatus = "done"
+	Completed BookingStatus = "completed"
 	Missed    BookingStatus = "missed"
 )
 
@@ -15,4 +16,21 @@ const (
 	Active    PaymentStatus = "paid"
 	Overdue   PaymentStatus = "unpaid"
 	Suspended PaymentStatus = "suspended"
+)
+
+type FlowState string
+
+const (
+	StateStart   FlowState = "start"
+	StateService FlowState = "service"
+	StateStaff   FlowState = "staff"
+	StateTime    FlowState = "time"
+	StateConfirm FlowState = "confirm"
+)
+
+type UserRole string
+
+const(
+	Admin UserRole = "admin"
+	Barber UserRole = "barber"
 )

@@ -15,7 +15,7 @@ type Database struct {
 
 func Connect() *Database {
 	dsn := os.Getenv("DATABASE_URL")
-	log.Println("Connecting to database with URL:", dsn)
+	log.Println("Connecting to database with URL:")
 	conn, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("failed to connect database:", err)
