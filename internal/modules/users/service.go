@@ -21,7 +21,7 @@ func NewService(repo *Repository, bus business.BusinessWriter) *Service {
 }
 
 func (s *Service) Signup(req *SignupRequest) error {
-	
+
 	if _, err := s.repo.GetUserbyEmail(req.Email); err == nil {
 		return errors.New("user with this email already exists")
 	}
@@ -44,7 +44,6 @@ func (s *Service) Signup(req *SignupRequest) error {
 		businessID = &req.BusinessID
 	}
 
-
 	tx := s.repo.db.Begin()
 	if tx.Error != nil {
 		return tx.Error
@@ -66,7 +65,6 @@ func (s *Service) Signup(req *SignupRequest) error {
 		return errors.New("failed to hash password")
 	}
 
-	
 	user := &models.User{
 		Name:       req.Name,
 		Email:      req.Email,
@@ -110,8 +108,11 @@ func (s *Service) Login(req *LoginRequest) (string, error) {
 	if err != nil {
 		return "", errors.New("invalid email or password")
 	}
-
-	token, err := utils.GenerateToken(user.ID.String(), user.Email)
+	business, err := s.businessWriter.GetBusinessByUserID(user.ID)
+	if err != nil {
+		return "", errors.New("business not found")
+	}
+	token, err := utils.GenerateToken(user.ID.String(), user.Email, user.Role, business.ID)
 	if err != nil {
 		return "", errors.New("failed to generate token")
 	}
