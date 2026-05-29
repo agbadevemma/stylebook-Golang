@@ -26,3 +26,13 @@ func (r *Repository) GetBusinessByID(id uuid.UUID) (*models.Business, error) {
 	}
 	return &business, nil
 }
+
+
+func (r *Repository) GetBusinessByUserID(id uuid.UUID) (*models.Business, error) {
+	var business models.Business
+	err := r.db.Where("owner_id = ?", id).First(&business).Error
+	if err != nil {
+		return nil, err
+	}
+	return &business, nil
+}
