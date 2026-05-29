@@ -14,5 +14,6 @@ func NewService(repo *Repository, bus client.ClientWriter) *Service {
 }
 
 func (s *Service) CreateBooking(req *CreateBookingRequest) {
+	
 
 }
