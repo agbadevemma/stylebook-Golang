@@ -17,5 +17,5 @@ type Service struct {
 	IsActive bool `json:"is_active" gorm:"default:true"`
 
 	BusinessID uuid.UUID `json:"business_id" gorm:"not null;index"`
-	Business   Business  `json:"business" gorm:"foreignKey:BusinessID"`
+	Business   Business  `json:"business" gorm:"foreignKey:BusinessID;references:ID"`
 }
