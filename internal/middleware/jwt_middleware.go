@@ -14,9 +14,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		authHeader := c.GetHeader("Authorization")
 
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "authorization header required",
-			})
+			c.JSON(http.StatusUnauthorized,utils.ErrorResponse("Authorization header required"))
 			c.Abort()
 			return
 		}
@@ -40,7 +38,8 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 
 		// store user info in context
 		c.Set("userID", claims.UserID)
-		c.Set("role", claims.Role)
+		c.Set("role", utils.UserRole(claims.Role))
+		c.Set("businessID", claims.BusinessID)
 
 		c.Next()
 	}
