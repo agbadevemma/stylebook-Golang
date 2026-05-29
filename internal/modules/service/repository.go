@@ -21,7 +21,7 @@ func (r *Repository) CreateService(service *models.Service) error {
 func (r *Repository) GetServiceByID(id uuid.UUID) (*models.Service, error) {
 	var service models.Service
 
-	if err := r.db.First(&service, id).Error; err != nil {
+	if err := r.db.Preload("Business").First(&service, id).Error; err != nil {
 		return nil, err
 	}
 	return &service, nil
@@ -37,7 +37,7 @@ func (r *Repository) DeleteService(id uuid.UUID) error {
 
 func (r *Repository) ListServices() ([]models.Service, error) {
 	var services []models.Service
-	if err := r.db.Find(&services).Error; err != nil {
+	if err := r.db.Preload("Business").Find(&services).Error; err != nil {
 		return nil, err
 	}
 	return services, nil

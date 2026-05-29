@@ -16,12 +16,13 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) CreateService(req *CreateServiceRequest) error {
+func (s *Service) CreateService(req *CreateServiceRequest, businessID uuid.UUID) error {
 	service := &models.Service{
 		Name:        req.Name,
 		Description: req.Description,
 		Price:       req.Price,
 		Duration:    req.Duration,
+		BusinessID:  businessID,
 	}
 
 	err := s.repo.CreateService(service)
@@ -33,12 +34,12 @@ func (s *Service) CreateService(req *CreateServiceRequest) error {
 	return nil
 }
 
-func (s *Service) GetServiceByID(id uuid.UUID) (*models.Service, error) {
-	return s.repo.GetServiceByID(id)
+func (s *Service) GetServiceByID(serviceId uuid.UUID) (*models.Service, error) {
+	return s.repo.GetServiceByID(serviceId)
 }
 
-func (s *Service) UpdateService(req *UpdateServiceRequest) error {
-	service, err := s.repo.GetServiceByID(req.ID)
+func (s *Service) UpdateService(req *UpdateServiceRequest, serviceId uuid.UUID) error {
+	service, err := s.repo.GetServiceByID(serviceId)
 
 	if err != nil {
 		log.Printf("Error finding service: %v", err.Error())
@@ -70,15 +71,14 @@ func (s *Service) UpdateService(req *UpdateServiceRequest) error {
 	return nil
 }
 
-func (s *Service) DeleteService(id uuid.UUID) error {
-	_, err := s.repo.GetServiceByID(id)
+func (s *Service) DeleteService(serviceId uuid.UUID) error {
+	_, err := s.repo.GetServiceByID(serviceId)
 	if err != nil {
 		log.Printf("Error finding service: %v", err.Error())
 		return errors.New("service not found")
 	}
 
-	
-	err = s.repo.DeleteService(id)
+	err = s.repo.DeleteService(serviceId)
 	if err != nil {
 		log.Printf("Error deleting service: %v", err.Error())
 		return errors.New("failed to delete service")
