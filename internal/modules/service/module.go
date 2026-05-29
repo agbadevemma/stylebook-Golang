@@ -11,21 +11,21 @@ type Module struct {
 
 func NewModule(db *gorm.DB) *Module {
 
-	userRepo := NewRepository(db)
-	userService := NewService(userRepo)
-	userHadler := NewHandler(userService)
+	serviceRepo := NewRepository(db)
+	serviceService := NewService(serviceRepo)
+	serviceHandler := NewHandler(serviceService)
 
-	return &Module{handler: userHadler}
+	return &Module{handler: serviceHandler}
 }
 
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
-	user := api.Group("/services")
+	service := api.Group("/services")
 	{
-		user.POST("/create", m.handler.CreateService)
-		user.GET("/list", m.handler.ListServices)
-		user.GET("/id", m.handler.GetServiceByID)
-		user.PUT("/id", m.handler.UpdateService)
-		user.DELETE("/id", m.handler.DeleteService)
+		service.POST("/create", m.handler.CreateService)
+		service.GET("/list", m.handler.ListServices)
+		service.GET("/id", m.handler.GetServiceByID)
+		service.PUT("/id", m.handler.UpdateService)
+		service.DELETE("/id", m.handler.DeleteService)
 	}
 
 }
