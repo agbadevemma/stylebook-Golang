@@ -6,13 +6,16 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
 type Claims struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
+	UserID     string    `json:"user_id"`
+	Role       UserRole  `json:"user_role"`
+	BusinessID uuid.UUID `json:"business_id"`
+	Email      string    `json:"email"`
 	jwt.RegisteredClaims
 }
 
@@ -21,12 +24,14 @@ type RefreshClaims struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(userID, email string) (string, error) {
+func GenerateToken(userID, email string, role UserRole, businessId uuid.UUID) (string, error) {
 	claims := Claims{
-		UserID: userID,
-		Email:  email,
+		UserID:     userID,
+		Email:      email,
+		Role:       role,
+		BusinessID: businessId,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
@@ -34,8 +39,6 @@ func GenerateToken(userID, email string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtSecret)
 }
-
-
 
 func ValidateToken(tokenStr string) (*Claims, error) {
 
@@ -63,5 +66,3 @@ func ValidateToken(tokenStr string) (*Claims, error) {
 
 	return claims, nil
 }
-
-
