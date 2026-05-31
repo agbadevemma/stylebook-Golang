@@ -6,10 +6,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
+	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 )
 
 type Service struct {
-	repo *Repository
+	repo           *Repository
+	businessWriter business.BusinessWriter
 }
 
 func NewService(repo *Repository) *Service {
@@ -34,7 +36,16 @@ func (s *Service) CreateService(req *CreateServiceRequest, businessID uuid.UUID)
 	return nil
 }
 
+func (s *Service) ListServices(businessID uuid.UUID) ([]models.Service, error) {
+	_, err := s.businessWriter.GetBusinessByID(businessID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.ListServices(businessID)
+}
+
 func (s *Service) GetServiceByID(serviceId uuid.UUID) (*models.Service, error) {
+
 	return s.repo.GetServiceByID(serviceId)
 }
 
@@ -72,20 +83,6 @@ func (s *Service) UpdateService(req *UpdateServiceRequest, serviceId uuid.UUID) 
 }
 
 func (s *Service) DeleteService(serviceId uuid.UUID) error {
-	_, err := s.repo.GetServiceByID(serviceId)
-	if err != nil {
-		log.Printf("Error finding service: %v", err.Error())
-		return errors.New("service not found")
-	}
 
-	err = s.repo.DeleteService(serviceId)
-	if err != nil {
-		log.Printf("Error deleting service: %v", err.Error())
-		return errors.New("failed to delete service")
-	}
-	return nil
-}
-
-func (s *Service) ListServices() ([]models.Service, error) {
-	return s.repo.ListServices()
+	return s.repo.DeleteService(serviceId)
 }

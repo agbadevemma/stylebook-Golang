@@ -21,7 +21,7 @@ func (r *Repository) CreateService(service *models.Service) error {
 func (r *Repository) GetServiceByID(id uuid.UUID) (*models.Service, error) {
 	var service models.Service
 
-	if err := r.db.Preload("Business").First(&service, id).Error; err != nil {
+	if err := r.db.First(&service, id).Error; err != nil {
 		return nil, err
 	}
 	return &service, nil
@@ -32,13 +32,22 @@ func (r *Repository) UpdateService(service *models.Service) error {
 }
 
 func (r *Repository) DeleteService(id uuid.UUID) error {
-	return r.db.Delete(&models.Service{}, id).Error
+	result := r.db.Delete(&models.Service{}, "id = ?", id)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }
 
-func (r *Repository) ListServices() ([]models.Service, error) {
+func (r *Repository) ListServices(businessID uuid.UUID) ([]models.Service, error) {
 	var services []models.Service
-	if err := r.db.Preload("Business").Find(&services).Error; err != nil {
-		return nil, err
-	}
-	return services, nil
+
+	err := r.db.Where("businessId = ?", businessID).Find(&services).Error
+
+	return services, err
 }

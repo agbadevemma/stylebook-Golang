@@ -1,13 +1,13 @@
 package service
 
 import (
-	"fmt"
-	"log"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
+	"gorm.io/gorm"
 )
 
 type Handler struct {
@@ -21,9 +21,9 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) CreateService(c *gin.Context) {
 	var req CreateServiceRequest
 
-	businessID, _ := c.Get("businessID")
-	fmt.Print("businesId", businessID)
-	idStr, ok := businessID.(uuid.UUID)
+	busId, _ := c.Get("businessId")
+
+	businessID, ok := busId.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid Business Id"))
 		return
@@ -33,7 +33,7 @@ func (h *Handler) CreateService(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	err := h.service.CreateService(&req, idStr)
+	err := h.service.CreateService(&req, businessID)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
@@ -43,12 +43,22 @@ func (h *Handler) CreateService(c *gin.Context) {
 }
 
 func (h *Handler) GetServiceByID(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
+	idParam := c.Param("id")
+	if idParam == "" {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Service ID is required"))
 		return
 	}
-	service, err := h.service.GetServiceByID(uuid.MustParse(id))
+	parsedID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid UUID"))
+		return
+	}
+
+	service, err := h.service.GetServiceByID(parsedID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Service not found"))
+		return
+	}
 
 	res := ServiceResponse{
 		ID:          service.ID,
@@ -60,21 +70,36 @@ func (h *Handler) GetServiceByID(c *gin.Context) {
 		BusinessID:  service.BusinessID,
 	}
 
-	if err != nil {
-		c.JSON(http.StatusNotFound, utils.ErrorResponse(err.Error()))
-		return
-	}
 	c.JSON(http.StatusOK, utils.SuccessResponse("Service found", res))
 }
 
 func (h *Handler) ListServices(c *gin.Context) {
-	services, err := h.service.ListServices()
-	if err != nil {
-		log.Printf("err %v", err.Error())
-		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to list services"))
+	businessIDValue, exists := c.Get("businessId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("business id not found"))
 		return
 	}
-	var res []ServiceResponse
+
+	businessID, ok := businessIDValue.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("invalid business id"))
+		return
+	}
+
+	services, err := h.service.ListServices(businessID)
+	if err != nil {
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, utils.ErrorResponse("blocked time not found"))
+			return
+
+		default:
+			c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch "))
+			return
+		}
+	}
+
+	res := make([]ServiceResponse, 0, len(services))
 
 	for _, s := range services {
 		res = append(res, ServiceResponse{
@@ -87,40 +112,62 @@ func (h *Handler) ListServices(c *gin.Context) {
 			BusinessID:  s.BusinessID,
 		})
 	}
+
 	c.JSON(http.StatusOK, utils.SuccessResponse("Services retrieved successfully", res))
 }
 
 func (h *Handler) UpdateService(c *gin.Context) {
 	var req UpdateServiceRequest
-	id := c.Param("id")
-	if id == "" {
+
+	idParam := c.Param("id")
+	if idParam == "" {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Service ID is required"))
 		return
 	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ValidationError(c, err)
+	parsedID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid UUID"))
 		return
 	}
-	err := h.service.UpdateService(&req, uuid.MustParse(id))
+
+	_, err = h.service.GetServiceByID(parsedID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Service not found"))
+		return
+	}
+
+	err = h.service.UpdateService(&req, parsedID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
 	}
+
 	c.JSON(http.StatusOK, utils.SuccessResponse("Service updated successfully", nil))
 }
 
 func (h *Handler) DeleteService(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
+	idParam := c.Param("id")
+	if idParam == "" {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Service ID is required"))
 		return
 	}
+	parsedID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid UUID"))
+		return
+	}
 
-	err := h.service.DeleteService(uuid.MustParse(id))
+	_, err = h.service.GetServiceByID(parsedID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Service not found"))
+		return
+	}
+
+	err = h.service.DeleteService(parsedID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
 	}
+
 	c.JSON(http.StatusOK, utils.SuccessResponse("Service deleted successfully", nil))
 }

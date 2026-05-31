@@ -27,6 +27,6 @@ type ServiceResponse struct {
 	Duration    int       `json:"duration"`
 	Price       int64     `json:"price"`
 	Description string    `json:"description"`
-	IsActive    bool      `json:"is_active"`
-	BusinessID  uuid.UUID `json:"business_id"`
+	IsActive    bool      `json:"isActive"`
+	BusinessID  uuid.UUID `json:"businessId"`
 }
