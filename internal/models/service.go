@@ -14,8 +14,8 @@ type Service struct {
 	// duration in minutes
 	Duration int `json:"duration" gorm:"not null"`
 
-	IsActive bool `json:"is_active" gorm:"default:true"`
+	IsActive bool `json:"isActive" gorm:"default:true"`
 
-	BusinessID uuid.UUID `json:"business_id" gorm:"not null;index"`
+	BusinessID uuid.UUID `json:"businessId" gorm:"not null;index"`
 	Business   Business  `json:"business" gorm:"foreignKey:BusinessID;references:ID"`
 }
