@@ -13,6 +13,8 @@ func Migrate(db *Database) {
 		&models.Business{},
 		&models.Service{},
 		&models.User{},
+		&models.Availability{},
+		&models.BlockedTime{},
 	)
 
 	if err != nil {
