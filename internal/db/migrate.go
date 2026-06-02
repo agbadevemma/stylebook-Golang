@@ -13,7 +13,7 @@ func Migrate(db *Database) {
 		&models.Business{},
 		&models.Service{},
 		&models.User{},
-		&models.Availability{},
+		&models.BusinessHour{},
 		&models.BlockedTime{},
 	)
 
