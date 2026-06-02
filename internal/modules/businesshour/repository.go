@@ -18,6 +18,10 @@ func (r *Repository) CreateBusinessHour(hour *models.BusinessHour) error {
 	return r.db.Create(hour).Error
 }
 
+func (r *Repository) CreateBusinessHourWithTx(tx *gorm.DB, hour *models.BusinessHour) error {
+	return tx.Create(hour).Error
+}
+
 func (r *Repository) UpdateBusinessHour(tx *gorm.DB, hour *models.BusinessHour) error {
 	return tx.Save(hour).Error
 }
