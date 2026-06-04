@@ -21,7 +21,7 @@ func NewModule(db *gorm.DB) *Module {
 }
 
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
-	businessHour := api.Group("/businesses")
+	businessHour := api.Group("/business")
 	{
 		businessHour.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Admin))
 		businessHour.GET("/hours", m.handler.ListBusinessHours)
