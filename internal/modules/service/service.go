@@ -69,7 +69,7 @@ func (s *Service) UpdateService(req *UpdateServiceRequest, serviceId uuid.UUID) 
 	if req.Duration != 0 {
 		service.Duration = req.Duration
 	}
-	if req.IsActive {
+	if req.IsActive != service.IsActive {
 		service.IsActive = req.IsActive
 	}
 	err = s.repo.UpdateService(service)

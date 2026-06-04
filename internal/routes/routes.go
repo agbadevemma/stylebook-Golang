@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
+	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
 	"github.com/stylebookgo/agbadevemma/internal/modules/service"
 	"github.com/stylebookgo/agbadevemma/internal/modules/users"
 	"gorm.io/gorm"
@@ -12,8 +13,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 	api := r.Group("/api/v1/")
 	businessRepo := business.NewRepository(db)
+	businessHourRepo := businesshour.NewRepository(db)
 
-	users.NewModule(db, businessRepo).ModuleRoutes(api)
+	users.NewModule(db, businessRepo, businessHourRepo).ModuleRoutes(api)
 	service.NewModule(db).ModuleRoutes(api)
 
 }

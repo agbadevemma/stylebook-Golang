@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
+	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -13,11 +14,12 @@ import (
 type Service struct {
 	repo *Repository
 
-	businessWriter business.BusinessWriter
+	businessWriter     business.BusinessWriter
+	businessHourWriter businesshour.BusinessHourWriter
 }
 
-func NewService(repo *Repository, bus business.BusinessWriter) *Service {
-	return &Service{repo: repo, businessWriter: bus}
+func NewService(repo *Repository, bus business.BusinessWriter, busHour businesshour.BusinessHourWriter) *Service {
+	return &Service{repo: repo, businessWriter: bus, businessHourWriter: busHour}
 }
 
 func (s *Service) Signup(req *SignupRequest) error {
@@ -88,6 +90,63 @@ func (s *Service) Signup(req *SignupRequest) error {
 		if err := s.businessWriter.CreateBusiness(tx, business); err != nil {
 			tx.Rollback()
 			return err
+		}
+
+		hours := []models.BusinessHour{
+			{
+				BusinessID: business.ID,
+				DayOfWeek:  0,
+				IsOpen:     false,
+			},
+			{
+				BusinessID: business.ID,
+				DayOfWeek:  1,
+				IsOpen:     true,
+				StartTime:  "09:00",
+				EndTime:    "18:00",
+			},
+			{
+				BusinessID: business.ID,
+				DayOfWeek:  2,
+				IsOpen:     true,
+				StartTime:  "09:00",
+				EndTime:    "18:00",
+			},
+			{
+				BusinessID: business.ID,
+				DayOfWeek:  3,
+				IsOpen:     true,
+				StartTime:  "09:00",
+				EndTime:    "18:00",
+			},
+			{
+				BusinessID: business.ID,
+				DayOfWeek:  4,
+				IsOpen:     true,
+				StartTime:  "09:00",
+				EndTime:    "18:00",
+			},
+			{
+				BusinessID: business.ID,
+				DayOfWeek:  5,
+				IsOpen:     true,
+				StartTime:  "09:00",
+				EndTime:    "18:00",
+			},
+			{
+				BusinessID: business.ID,
+				DayOfWeek:  6,
+				IsOpen:     true,
+				StartTime:  "09:00",
+				EndTime:    "18:00",
+			},
+		}
+		for _, hour := range hours {
+			if err := s.businessHourWriter.CreateBusinessHourWithTx(tx, &hour); err != nil {
+
+				tx.Rollback()
+				return err
+			}
 		}
 	}
 
