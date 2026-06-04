@@ -17,5 +17,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 	users.NewModule(db, businessRepo, businessHourRepo).ModuleRoutes(api)
 	service.NewModule(db).ModuleRoutes(api)
+	businesshour.NewModule(db).ModuleRoutes(api)
 
 }
