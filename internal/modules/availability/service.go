@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stylebookgo/agbadevemma/internal/funct"
 	"github.com/stylebookgo/agbadevemma/internal/modules/blockedtime"
 	"github.com/stylebookgo/agbadevemma/internal/modules/booking"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
@@ -61,16 +62,16 @@ func (s *Service) getDaySlots(
 
 	day := int(date.Weekday())
 
-	hours, err := s.businessHourWriter.GetBusinessHour(businessID, day)
-	if err != nil || !hours.IsOpen {
+	hour, err := s.businessHourWriter.GetBusinessHour(businessID, day)
+	if err != nil || !hour.IsOpen {
 		return []SlotResponse{}, nil
 	}
 
-	start, err := combine(date, hours.StartTime)
+	start, err := funct.Combine(date, hour.StartTime)
 	if err != nil {
 		return nil, err
 	}
-	end, err := combine(date, hours.EndTime)
+	end, err := funct.Combine(date, hour.EndTime)
 	if err != nil {
 		return nil, err
 	}
@@ -87,12 +88,12 @@ func (s *Service) getDaySlots(
 
 		slotEnd := cursor.Add(time.Duration(slotDuration) * time.Minute)
 
-		if isBlocked(cursor, slotEnd, blocked) {
+		if funct.IsBlocked(cursor, slotEnd, blocked) {
 			cursor = cursor.Add(15 * time.Minute)
 			continue
 		}
 
-		if isBooked(cursor, slotEnd, bookings) {
+		if funct.IsBooked(cursor, slotEnd, bookings) {
 			cursor = cursor.Add(15 * time.Minute)
 			continue
 		}

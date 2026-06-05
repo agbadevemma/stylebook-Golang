@@ -27,6 +27,7 @@ func (h *Handler) GetAvailability(c *gin.Context) {
 
 	result, err := h.service.GetAvailabilityRange(businessID, startDate, endDate)
 	if err != nil {
+		
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
