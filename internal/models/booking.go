@@ -16,4 +16,5 @@ type Booking struct {
 	StartTime     time.Time           `json:"startTime" gorm:"type:timestamp;not null;index"`
 	EndTime       time.Time           `json:"endTime" gorm:"type:timestamp;not null;index"`
 	BookingStatus utils.BookingStatus `json:"bookingStatus" gorm:"type:varchar(20);default:pending;not null"`
+	PaymentStatus utils.PaymentStatus `json:"paymentStatus" gorm:"type:varchar(20);default:pending;not null"`
 }

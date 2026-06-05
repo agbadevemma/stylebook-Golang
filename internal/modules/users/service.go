@@ -97,6 +97,8 @@ func (s *Service) Signup(req *SignupRequest) error {
 				BusinessID: business.ID,
 				DayOfWeek:  0,
 				IsOpen:     false,
+				StartTime:  "09:00",
+				EndTime:    "18:00",
 			},
 			{
 				BusinessID: business.ID,
