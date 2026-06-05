@@ -47,7 +47,7 @@ func (r *Repository) DeleteService(id uuid.UUID) error {
 func (r *Repository) ListServices(businessID uuid.UUID) ([]models.Service, error) {
 	var services []models.Service
 
-	err := r.db.Where("businessId = ?", businessID).Find(&services).Error
+	err := r.db.Where("business_id = ?", businessID).Find(&services).Error
 
 	return services, err
 }
