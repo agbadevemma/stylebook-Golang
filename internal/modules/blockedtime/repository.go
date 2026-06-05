@@ -1,6 +1,8 @@
 package blockedtime
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"gorm.io/gorm"
@@ -22,7 +24,7 @@ func (r *Repository) ListBlockedTime(businessID uuid.UUID) ([]models.BlockedTime
 	var blockedTimes []models.BlockedTime
 
 	err := r.db.
-		Where("businessId = ?", businessID).
+		Where("business_id = ?", businessID).
 		Find(&blockedTimes).Error
 
 	return blockedTimes, err
@@ -57,4 +59,19 @@ func (r *Repository) DeleteBlockedTime(id uuid.UUID) error {
 	}
 
 	return nil
+}
+
+func (r *Repository) GetBlockedTimes(
+	businessID uuid.UUID,
+	start, end time.Time,
+) ([]models.BlockedTime, error) {
+
+	var blocks []models.BlockedTime
+
+	err := r.db.
+		Where("business_id = ? AND start_time < ? AND end_time > ?",
+			businessID, end, start).
+		Find(&blocks).Error
+
+	return blocks, err
 }
