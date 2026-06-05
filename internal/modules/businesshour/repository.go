@@ -35,7 +35,7 @@ func (r *Repository) GetByBusinessAndDay(
 	var hour models.BusinessHour
 
 	err := tx.
-		Where("businessId = ? AND dayOfWeek = ?", businessID, day).
+		Where("business_id = ? AND day_of_week = ?", businessID, day).
 		First(&hour).Error
 
 	if err != nil {
@@ -52,9 +52,28 @@ func (r *Repository) ListByBusiness(
 	var hours []models.BusinessHour
 
 	err := r.db.
-		Where("businessId = ?", businessID).
-		Order("dayOfWeek ASC").
+		Where("business_id = ?", businessID).
+		Order("day_of_week ASC").
 		Find(&hours).Error
 
 	return hours, err
+}
+
+func (r *Repository) GetBusinessHour(
+	businessID uuid.UUID,
+	dayOfWeek int,
+) (*models.BusinessHour, error) {
+
+	var hour models.BusinessHour
+
+	err := r.db.
+		Where("business_id = ? AND day_of_week = ?", businessID, dayOfWeek).
+		First(&hour).Error
+
+	if err != nil {
+
+		return nil, err
+	}
+
+	return &hour, nil
 }
