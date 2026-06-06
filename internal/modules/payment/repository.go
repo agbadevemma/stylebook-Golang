@@ -32,3 +32,11 @@ func (r *Repository) CalculateBookingAmount(bookingID uuid.UUID) (int64, error) 
 	}
 	return totalAmount, nil
 }
+
+func (r *Repository) GetPaymentByBookingID(bookingID uuid.UUID) (*models.Payment, error) {
+	var payment models.Payment
+	if err := r.db.Where("booking_id = ?", bookingID).First(&payment).Error; err != nil {
+		return nil, err
+	}
+	return &payment, nil
+}

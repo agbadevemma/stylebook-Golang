@@ -20,7 +20,7 @@ func (r *Repository) CreateBooking(tx *gorm.DB, booking *models.Booking) error {
 	return tx.Create(booking).Error
 }
 
-func (r *Repository) GetBookingByID(id string) (*models.Booking, error) {
+func (r *Repository) GetBookingByID(id uuid.UUID) (*models.Booking, error) {
 	var booking models.Booking
 	if err := r.db.First(&booking, id).Error; err != nil {
 		return nil, err

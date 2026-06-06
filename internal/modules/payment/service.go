@@ -6,29 +6,30 @@ import (
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/funct"
 	"github.com/stylebookgo/agbadevemma/internal/models"
+	"github.com/stylebookgo/agbadevemma/internal/modules/booking"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 )
 
 type Service struct {
-	repo     *Repository
-	provider *Provider
-
+	repo          *Repository
+	provider      *Provider
+	bookingWriter booking.BookingWriter
 }
 
-func NewService(repo *Repository, provider *Provider) *Service {
-	return &Service{repo: repo, provider: provider}
+func NewService(repo *Repository, provider *Provider, bookingWriter booking.BookingWriter) *Service {
+	return &Service{repo: repo, provider: provider, bookingWriter: bookingWriter}
 }
 
 func (s *Service) InitializePayment(bookingID uuid.UUID) (string, error) {
 
 	// 1. Fetch booking
-	booking, err := s.repo.GetBookingByID(bookingID)
+	booking, err := s.bookingWriter.GetBookingByID(bookingID)
 	if err != nil {
 		return "", errors.New("booking not found")
 	}
 
 	// 2. Prevent duplicate payment
-	existingPayment, err := s.repo.GetByBookingID(bookingID)
+	existingPayment, err := s.repo.GetPaymentByBookingID(bookingID)
 	if err == nil && existingPayment.Status == utils.PaymentSuccess {
 		return "", errors.New("payment already completed for this booking")
 	}
