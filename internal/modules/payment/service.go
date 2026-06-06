@@ -6,36 +6,41 @@ import (
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/funct"
 	"github.com/stylebookgo/agbadevemma/internal/models"
-	"github.com/stylebookgo/agbadevemma/internal/modules/booking"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
+	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo          *Repository
-	provider      *Provider
-	bookingWriter booking.BookingWriter
+	repo     *Repository
+	provider *Provider
 }
 
-func NewService(repo *Repository, provider *Provider, bookingWriter booking.BookingWriter) *Service {
-	return &Service{repo: repo, provider: provider, bookingWriter: bookingWriter}
+func NewService(repo *Repository, provider *Provider) *Service {
+	return &Service{repo: repo, provider: provider}
 }
 
-func (s *Service) InitializePayment(bookingID uuid.UUID) (string, error) {
-
-	// 1. Fetch booking
-	booking, err := s.bookingWriter.GetBookingByID(bookingID)
-	if err != nil {
-		return "", errors.New("booking not found")
-	}
+func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (string, error) {
 
 	// 2. Prevent duplicate payment
-	existingPayment, err := s.repo.GetPaymentByBookingID(bookingID)
-	if err == nil && existingPayment.Status == utils.PaymentSuccess {
-		return "", errors.New("payment already completed for this booking")
+	existingPayment, err := s.repo.GetPaymentByBookingID(booking.ID)
+
+	if err == nil {
+		switch existingPayment.Status {
+		case utils.PaymentPending:
+			return existingPayment.AuthorizationURL, nil
+
+		case utils.PaymentSuccess:
+			return "", errors.New("payment already completed for this booking")
+
+		case utils.PaymentFailed:
+			// allow retry for failed payments
+			break
+		}
+
 	}
 
 	// 3. Calculate total amount from booking services
-	totalAmount, err := s.repo.CalculateBookingAmount(bookingID)
+	totalAmount, err := s.repo.CalculateBookingAmount(booking.ID)
 	if err != nil {
 		return "", errors.New("failed to calculate booking amount")
 	}
@@ -44,14 +49,14 @@ func (s *Service) InitializePayment(bookingID uuid.UUID) (string, error) {
 	fee, net := funct.CalculateFee(totalAmount)
 
 	// 5. Generate reference (idempotency key)
-	ref := "BOOK_" + booking.ID.String()
+	ref := uuid.NewString()
 
 	// 6. Create payment record (pending)
 	payment := &models.Payment{
 		BookingID:     booking.ID,
 		BusinessID:    booking.BusinessID,
 		Reference:     ref,
-		Email:         booking.CustomerPhone, // replace with email if you add it
+		Email:         booking.CustomerEmail, // replace with email if you add it
 		Amount:        totalAmount,
 		ServiceAmount: totalAmount,
 		PlatformFee:   fee,
@@ -60,8 +65,9 @@ func (s *Service) InitializePayment(bookingID uuid.UUID) (string, error) {
 		Provider:      "paystack",
 	}
 
-	err = s.repo.CreatePayment(nil, payment)
+	err = s.repo.CreatePayment(tx, payment)
 	if err != nil {
+		tx.Rollback()
 		return "", errors.New("failed to create payment record")
 	}
 
@@ -73,6 +79,7 @@ func (s *Service) InitializePayment(bookingID uuid.UUID) (string, error) {
 	)
 
 	if err != nil {
+		tx.Rollback()
 		return "", errors.New("failed to initialize paystack payment")
 	}
 
@@ -80,10 +87,14 @@ func (s *Service) InitializePayment(bookingID uuid.UUID) (string, error) {
 	payment.AuthorizationURL = res.Data.AuthorizationURL
 	payment.AccessCode = res.Data.AccessCode
 
-	if err := s.repo.UpdatePayment(nil, payment); err != nil {
+	if err := s.repo.UpdatePayment(tx, payment); err != nil {
+		tx.Rollback()
 		return "", errors.New("failed to update payment initialization")
 	}
 
+	if err := tx.Commit().Error; err != nil {
+		return "", errors.New("transaction commit failed")
+	}
 	// 9. Return redirect URL to frontend
 	return res.Data.AuthorizationURL, nil
 }
