@@ -11,6 +11,7 @@ type Booking struct {
 	Base
 	CustomerName  string              `json:"customerName" gorm:"type:varchar(100);not null"`
 	CustomerPhone string              `json:"customerPhone" gorm:"type:varchar(20);not null"`
+	CustomerEmail string              `json:"customerEmail" gorm:"type:varchar(100);not null"`
 	BusinessID    uuid.UUID           `json:"businessId" gorm:"type:uuid;not null;index"`
 	TotalDuration time.Duration       `json:"totalDuration" gorm:"type:bigint;not null"`
 	StartTime     time.Time           `json:"startTime" gorm:"type:timestamp;not null;index"`

@@ -9,7 +9,7 @@ import (
 
 type Payment struct {
 	Base
-	BookingID  uuid.UUID `json:"booking_id" gorm:"type:uuid;not null;index"`
+	BookingID  uuid.UUID `json:"booking_id" gorm:"type:uuid;not null;uniqueIndex"`
 	BusinessID uuid.UUID `json:"business_id" gorm:"type:uuid;not null;index"`
 
 	// Paystack reference (VERY IMPORTANT for webhook idempotency)
