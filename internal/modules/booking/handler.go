@@ -30,12 +30,13 @@ func (h *Handler) CreateBooking(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid Business Id"))
 		return
 	}
+	str, err := h.service.CreateBooking(&req, businessID)
 
-	if err := h.service.CreateBooking(&req, businessID); err != nil {
+	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 
 		return
 	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("Booking created successfully", nil))
+	c.JSON(http.StatusOK, utils.SuccessResponse("Booking created successfully", map[string]interface{}{"paymentLink": str}))
 }
