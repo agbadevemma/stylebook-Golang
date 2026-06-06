@@ -3,6 +3,7 @@ package payment
 import (
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
+	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -39,4 +40,25 @@ func (r *Repository) GetPaymentByBookingID(bookingID uuid.UUID) (*models.Payment
 		return nil, err
 	}
 	return &payment, nil
+}
+
+func (r *Repository) GetPaymentByReference(reference string) (*models.Payment, error) {
+	var payment models.Payment
+	if err := r.db.Where("reference = ?", reference).First(&payment).Error; err != nil {
+		return nil, err
+	}
+	return &payment, nil
+}
+
+func (r *Repository) UpdateBookingStatus(
+	tx *gorm.DB,
+	bookingID uuid.UUID,
+	status utils.BookingStatus,
+) error {
+
+	return tx.
+		Model(&models.Booking{}).
+		Where("id = ?", bookingID).
+		Update("status", status).
+		Error
 }
