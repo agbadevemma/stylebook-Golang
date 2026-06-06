@@ -14,3 +14,8 @@ type CreateBookingRequest struct {
 	EndTime       time.Time   `json:"endTime" binding:"required,gtfield=StartTime"`
 	TotalDuration time.Duration `json:"totalDuration" binding:"required"`
 }
+
+type BookingResponse struct {
+	BookingID   uuid.UUID `json:"bookingId"`
+	PaymentURL  string    `json:"paymentUrl"`
+}
