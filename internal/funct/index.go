@@ -42,3 +42,20 @@ func Combine(date time.Time, t string) (time.Time, error) {
 		date.Location(),
 	), nil
 }
+
+func CalculateFee(amount int64) (platformFee int64, netAmount int64) {
+
+	fee := int64(float64(amount) * 0.10)
+
+	if fee < 100 {
+		fee = 100
+	}
+
+	if fee > 500 {
+		fee = 500
+	}
+
+	net := amount - fee
+
+	return fee, net
+}

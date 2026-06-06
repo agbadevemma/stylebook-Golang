@@ -9,12 +9,13 @@ import (
 func Migrate(db *Database) {
 	err := db.DB.AutoMigrate(
 		&models.Booking{},
-		&models.Client{},
 		&models.Business{},
 		&models.Service{},
 		&models.User{},
 		&models.BusinessHour{},
 		&models.BlockedTime{},
+		&models.Payment{},
+		&models.BookingService{},
 	)
 
 	if err != nil {
