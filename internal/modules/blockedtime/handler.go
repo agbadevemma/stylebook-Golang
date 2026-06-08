@@ -60,8 +60,17 @@ func (h *Handler) ListBlockedTime(c *gin.Context) {
 		}
 
 	}
+	res := make([]ResponseBlockedTime, 0, len(blockedTimes))
+	for _, blockTime := range blockedTimes {
+		res = append(res, ResponseBlockedTime{
+			ID:        blockTime.ID,
+			StartTime: blockTime.StartTime,
+			EndTime:   blockTime.EndTime,
+			Reason:    blockTime.Reason,
+		})
+	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("Fetched blocked time succesfully", blockedTimes))
+	c.JSON(http.StatusOK, utils.SuccessResponse("Fetched blocked time succesfully", res))
 }
 
 func (h *Handler) GetBlockedTimeByID(c *gin.Context) {
@@ -83,10 +92,25 @@ func (h *Handler) GetBlockedTimeByID(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to get blocked time"))
 		return
 	}
+	res := ResponseBlockedTime{
+		ID:        blockedTime.ID,
+		StartTime: blockedTime.StartTime,
+		EndTime:   blockedTime.EndTime,
+		Reason:    blockedTime.Reason,
+	}
 
-	c.JSON(http.StatusOK, blockedTime)
+	c.JSON(http.StatusOK, utils.SuccessResponse("Fetched Blocked Time", res))
 }
+
 func (h *Handler) UpdateBlockedTime(c *gin.Context) {
+	busID, _ := c.Get("businessId")
+
+	businessID, ok := busID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid Business Id"))
+		return
+	}
+
 	idParam := c.Param("id")
 
 	id, err := uuid.Parse(idParam)
@@ -102,7 +126,7 @@ func (h *Handler) UpdateBlockedTime(c *gin.Context) {
 		return
 	}
 
-	err = h.service.UpdateBlockedTime(id, &req)
+	err = h.service.UpdateBlockedTime(id, businessID, &req)
 	if err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):

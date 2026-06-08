@@ -1,6 +1,9 @@
 package blockedtime
 
 import (
+	"errors"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
@@ -11,8 +14,8 @@ type Service struct {
 	businessWriter business.BusinessWriter
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, businessWriter business.BusinessWriter) *Service {
+	return &Service{repo: repo, businessWriter: businessWriter}
 }
 
 func (s *Service) CreateBlockedTime(
@@ -20,10 +23,23 @@ func (s *Service) CreateBlockedTime(
 	businessID uuid.UUID,
 ) error {
 
+	business, err := s.businessWriter.GetBusinessByID(businessID)
+	if err != nil {
+		return err
+	}
+
+	loc, err := time.LoadLocation(business.Timezone)
+	if err != nil {
+		return err
+	}
+
+	start := req.StartTime.In(loc)
+	end := req.EndTime.In(loc)
+
 	blockedTime := &models.BlockedTime{
 		BusinessID: businessID,
-		StartTime:  req.StartTime,
-		EndTime:    req.EndTime,
+		StartTime:  start.UTC(),
+		EndTime:    end.UTC(),
 		Reason:     req.Reason,
 	}
 
@@ -44,6 +60,7 @@ func (s *Service) GetBlockedTimeByID(id uuid.UUID) (*models.BlockedTime, error) 
 
 func (s *Service) UpdateBlockedTime(
 	id uuid.UUID,
+	businessID uuid.UUID,
 	req *UpdateBlockedTimeRequest,
 ) error {
 
@@ -52,12 +69,28 @@ func (s *Service) UpdateBlockedTime(
 		return err
 	}
 
+	business, err := s.businessWriter.GetBusinessByID(businessID)
+	if err != nil {
+		return err
+	}
+
+	loc, err := time.LoadLocation(business.Timezone)
+	if err != nil {
+		return err
+	}
+
 	if !req.StartTime.IsZero() {
-		blockedTime.StartTime = req.StartTime
+		start := req.StartTime.In(loc)
+		blockedTime.StartTime = start.UTC()
 	}
 
 	if !req.EndTime.IsZero() {
-		blockedTime.EndTime = req.EndTime
+		end := req.EndTime.In(loc)
+		blockedTime.EndTime = end.UTC()
+	}
+
+	if !blockedTime.StartTime.Before(blockedTime.EndTime) {
+		return errors.New("start time must be before end time")
 	}
 
 	if req.Reason != "" {

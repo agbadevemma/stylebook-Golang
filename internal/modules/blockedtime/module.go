@@ -3,6 +3,7 @@ package blockedtime
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/stylebookgo/agbadevemma/internal/middleware"
+	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"gorm.io/gorm"
 )
@@ -11,10 +12,10 @@ type Module struct {
 	handler *Handler
 }
 
-func NewModule(db *gorm.DB) *Module {
+func NewModule(db *gorm.DB, businessWriter business.BusinessWriter) *Module {
 
 	blockedTimeRepo := NewRepository(db)
-	blockedTimeService := NewService(blockedTimeRepo)
+	blockedTimeService := NewService(blockedTimeRepo, businessWriter)
 	blockedTimeHandler := NewHandler(blockedTimeService)
 
 	return &Module{handler: blockedTimeHandler}
