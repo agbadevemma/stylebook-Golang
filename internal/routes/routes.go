@@ -28,10 +28,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	bookingServiceRepo := bookingservice.NewRepository(db)
 
 	users.NewModule(db, businessRepo, businessHourRepo).ModuleRoutes(api)
-	service.NewModule(db).ModuleRoutes(api)
+	service.NewModule(db, businessRepo).ModuleRoutes(api)
 	payment.NewModule(paymentService).ModuleRoutes(api)
 	businesshour.NewModule(db).ModuleRoutes(api)
-	blockedtime.NewModule(db).ModuleRoutes(api)
+	blockedtime.NewModule(db, businessRepo).ModuleRoutes(api)
 	booking.NewModule(db, bookingServiceRepo, serviceRepo, paymentService).ModuleRoutes(api)
 	availability.NewModule(bookingRepo, blockedRepo, businessHourRepo, businessRepo).ModuleRoutes(api)
 
