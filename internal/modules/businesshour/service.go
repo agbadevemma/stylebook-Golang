@@ -54,8 +54,8 @@ func (s *Service) UpdateBusinessHour(
 			log.Printf("Error finding business hour: %v", err.Error())
 			return errors.New("business hour not found")
 		}
-		if r.DayOfWeek != 0 {
-			hour.DayOfWeek = r.DayOfWeek
+		if r.DayOfWeek != nil {
+			hour.DayOfWeek = *r.DayOfWeek
 		}
 		if r.StartTime != "" {
 			hour.StartTime = r.StartTime

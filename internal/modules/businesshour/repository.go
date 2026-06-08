@@ -29,7 +29,7 @@ func (r *Repository) UpdateBusinessHour(tx *gorm.DB, hour *models.BusinessHour) 
 func (r *Repository) GetByBusinessAndDay(
 	tx *gorm.DB,
 	businessID uuid.UUID,
-	day int,
+	day *int,
 ) (*models.BusinessHour, error) {
 
 	var hour models.BusinessHour
