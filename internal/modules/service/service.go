@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/google/uuid"
@@ -14,8 +15,8 @@ type Service struct {
 	businessWriter business.BusinessWriter
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, bw business.BusinessWriter) *Service {
+	return &Service{repo: repo, businessWriter: bw}
 }
 
 func (s *Service) CreateService(req *CreateServiceRequest, businessID uuid.UUID) error {
@@ -37,6 +38,8 @@ func (s *Service) CreateService(req *CreateServiceRequest, businessID uuid.UUID)
 }
 
 func (s *Service) ListServices(businessID uuid.UUID) ([]models.Service, error) {
+	fmt.Println("service nil:", s == nil)
+	fmt.Println("businessWriter nil:", s.businessWriter == nil)
 	_, err := s.businessWriter.GetBusinessByID(businessID)
 	if err != nil {
 		return nil, err
@@ -51,7 +54,6 @@ func (s *Service) GetServiceByID(serviceId uuid.UUID) (*models.Service, error) {
 
 func (s *Service) UpdateService(req *UpdateServiceRequest, serviceId uuid.UUID) error {
 	service, err := s.repo.GetServiceByID(serviceId)
-
 	if err != nil {
 		log.Printf("Error finding service: %v", err.Error())
 		return errors.New("service not found")
@@ -72,6 +74,7 @@ func (s *Service) UpdateService(req *UpdateServiceRequest, serviceId uuid.UUID) 
 	if req.IsActive != service.IsActive {
 		service.IsActive = req.IsActive
 	}
+
 	err = s.repo.UpdateService(service)
 
 	if err != nil {

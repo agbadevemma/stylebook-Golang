@@ -136,6 +136,11 @@ func (h *Handler) UpdateService(c *gin.Context) {
 		return
 	}
 
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
 	err = h.service.UpdateService(&req, parsedID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
