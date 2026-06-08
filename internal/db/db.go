@@ -16,7 +16,10 @@ type Database struct {
 func Connect() *Database {
 	dsn := os.Getenv("DATABASE_URL")
 	log.Println("Connecting to database with URL:")
-	conn, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	conn, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true, // ← disables prepared statements, fixes PgBouncer conflict
+	}), &gorm.Config{})
 	if err != nil {
 		log.Fatal("failed to connect database:", err)
 	}
@@ -28,7 +31,8 @@ func Connect() *Database {
 
 	sqlDB.SetMaxOpenConns(25)
 	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetConnMaxLifetime(5 * time.Minute)
+	sqlDB.SetConnMaxIdleTime(2 * time.Minute)
 
 	log.Println("Database connected using URL")
 	return &Database{
