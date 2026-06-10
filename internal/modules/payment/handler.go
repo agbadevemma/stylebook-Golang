@@ -88,10 +88,9 @@ func (h *Handler) GetBusinessTransactions(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("Succe", map[string]any{
-		"data":   data,
-		"total":  total,
-		"limit":  limit,
-		"offset": offset,
-	}))
+	c.JSON(http.StatusOK, utils.SuccessResponse("Fetched transaction successfully", TransactionResponse{Result: data, Pagination: utils.Pagination{
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}}))
 }
