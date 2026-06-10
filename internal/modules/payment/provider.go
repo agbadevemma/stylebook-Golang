@@ -102,3 +102,57 @@ func (p *Provider) ResolveBankAccount(accountNumber, bankCode string) (*BankReso
 
 	return &result, nil
 }
+
+
+func (p *Provider) CreateTransferRecipient(
+	name,
+	accountNumber,
+	bankCode string,
+) (*CreateRecipientResponse, error) {
+
+	url := fmt.Sprintf("%s/transferrecipient", os.Getenv("PAYSTACK_BASE_URL"))
+
+	payload := CreateRecipientRequest{
+		Type:          "nuban",
+		Name:          name,
+		AccountNumber: accountNumber,
+		BankCode:      bankCode,
+		Currency:      "NGN",
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+os.Getenv("PAYSTACK_SECRET_KEY"))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var result CreateRecipientResponse
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	if !result.Status {
+		return nil, fmt.Errorf("paystack error: %s", result.Message)
+	}
+
+	return &result, nil
+}
+
+
+

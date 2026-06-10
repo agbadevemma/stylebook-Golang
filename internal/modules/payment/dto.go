@@ -45,3 +45,26 @@ type BankResolveResponse struct {
 		BankID        int    `json:"bank_id"`
 	} `json:"data"`
 }
+
+type CreateRecipientRequest struct {
+	Type          string `json:"type"`
+	Name          string `json:"name"`
+	AccountNumber string `json:"account_number"`
+	BankCode      string `json:"bank_code"`
+	Currency      string `json:"currency"`
+}
+
+type CreateRecipientResponse struct {
+	Status  bool   `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		RecipientCode string `json:"recipient_code"`
+	} `json:"data"`
+}
+
+type CreateTransferRecipientRequest struct {
+	Name          string `json:"name" binding:"required"`
+	BankName      string `json:"bankName" binding:"required"`
+	AccountNumber string `json:"accountNumber" binding:"required"`
+	BankCode      string `json:"bankCode" binding:"required"`
+}

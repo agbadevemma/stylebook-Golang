@@ -95,7 +95,6 @@ func (h *Handler) GetBusinessTransactions(c *gin.Context) {
 	}}))
 }
 
-
 func (h *Handler) ResolveBankAccount(c *gin.Context) {
 	accountNumber := c.Query("account_number")
 	bankCode := c.Query("bank_code")
@@ -112,7 +111,43 @@ func (h *Handler) ResolveBankAccount(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, utils.SuccessResponse("success", gin.H{
-		"account_number": res.Data.AccountNumber,
-		"account_name":   res.Data.AccountName,
+		"accountNumber": res.Data.AccountNumber,
+		"accountName":   res.Data.AccountName,
+	}))
+}
+
+func (h *Handler) CreateTransferRecipient(c *gin.Context) {
+	busID, ok := c.Get("businessId")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("missing business id"))
+		return
+	}
+
+	businessID, ok := busID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid business id"))
+		return
+	}
+	var req CreateTransferRecipientRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	res, err := h.service.CreateTransferRecipient(
+		req.Name,
+		req.AccountNumber,
+		req.BankName,
+		req.BankCode,
+		businessID,
+	)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("recipient created", gin.H{
+		"recipientCode": res.Data.RecipientCode,
 	}))
 }

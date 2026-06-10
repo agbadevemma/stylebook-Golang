@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/funct"
 	"github.com/stylebookgo/agbadevemma/internal/models"
+	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/ledger"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"gorm.io/gorm"
@@ -19,11 +20,12 @@ import (
 type Service struct {
 	repo         *Repository
 	provider     *Provider
+	business     business.BusinessWriter
 	ledgerWriter ledger.LedgerWriter
 }
 
-func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.LedgerWriter) *Service {
-	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter}
+func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.LedgerWriter, business business.BusinessWriter) *Service {
+	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter, business: business}
 }
 
 func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (string, error) {
@@ -172,4 +174,35 @@ func (s *Service) GetBusinessTransactions(
 
 func (s *Service) ResolveBankAccount(accountNumber, bankCode string) (*BankResolveResponse, error) {
 	return s.provider.ResolveBankAccount(accountNumber, bankCode)
+}
+
+func (s *Service) CreateTransferRecipient(
+	name,
+	accountNumber,
+	bankName,
+	bankCode string,
+	businessID uuid.UUID,
+) (*CreateRecipientResponse, error) {
+
+	_, err := s.business.GetBusinessByID(businessID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := s.provider.CreateTransferRecipient(
+		name,
+		accountNumber,
+		bankCode,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.business.UpdateBusinessBankDetails(businessID, accountNumber, res.Data.RecipientCode, bankName, bankCode)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
