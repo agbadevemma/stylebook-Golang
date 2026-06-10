@@ -32,7 +32,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	payment.NewModule(paymentService).ModuleRoutes(api)
 	businesshour.NewModule(db).ModuleRoutes(api)
 	blockedtime.NewModule(db, businessRepo).ModuleRoutes(api)
-	booking.NewModule(db, bookingServiceRepo, serviceRepo, paymentService).ModuleRoutes(api)
+	booking.NewModule(db, bookingServiceRepo, businessHourRepo, blockedRepo, serviceRepo, paymentService, businessRepo).ModuleRoutes(api)
 	availability.NewModule(bookingRepo, blockedRepo, businessHourRepo, businessRepo).ModuleRoutes(api)
 
 }

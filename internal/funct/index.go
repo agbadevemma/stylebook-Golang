@@ -25,7 +25,6 @@ func IsBooked(start, end time.Time, bookings []models.Booking) bool {
 }
 
 func Combine(date time.Time, t string) (time.Time, error) {
-
 	parsed, err := time.Parse("15:04", t)
 	if err != nil {
 		return time.Time{}, err
@@ -43,19 +42,19 @@ func Combine(date time.Time, t string) (time.Time, error) {
 	), nil
 }
 
-func CalculateFee(amount int64) (platformFee int64, netAmount int64) {
+func CalculateFee(serviceAmount int64) (platformFee, netAmount, totalAmount int64) {
 
-	fee := int64(float64(amount) * 0.10)
+	fee := int64(float64(serviceAmount) * 0.10)
 
-	if fee < 100 {
-		fee = 100
+	if fee < 10000 {
+		fee = 10000
 	}
 
-	if fee > 500 {
-		fee = 500
+	if fee > 50000 {
+		fee = 50000
 	}
 
-	net := amount - fee
+	total := serviceAmount + fee
 
-	return fee, net
+	return fee, serviceAmount, total
 }
