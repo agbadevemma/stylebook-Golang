@@ -94,3 +94,25 @@ func (h *Handler) GetBusinessTransactions(c *gin.Context) {
 		Offset: offset,
 	}}))
 }
+
+
+func (h *Handler) ResolveBankAccount(c *gin.Context) {
+	accountNumber := c.Query("account_number")
+	bankCode := c.Query("bank_code")
+
+	if accountNumber == "" || bankCode == "" {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("missing query params"))
+		return
+	}
+
+	res, err := h.service.ResolveBankAccount(accountNumber, bankCode)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("success", gin.H{
+		"account_number": res.Data.AccountNumber,
+		"account_name":   res.Data.AccountName,
+	}))
+}

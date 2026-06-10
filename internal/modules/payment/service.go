@@ -169,3 +169,7 @@ func (s *Service) GetBusinessTransactions(
 
 	return s.repo.GetPaymentsByBusiness(businessID, limit, offset)
 }
+
+func (s *Service) ResolveBankAccount(accountNumber, bankCode string) (*BankResolveResponse, error) {
+	return s.provider.ResolveBankAccount(accountNumber, bankCode)
+}

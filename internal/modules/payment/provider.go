@@ -16,21 +16,7 @@ func NewProvider() *Provider {
 	return &Provider{}
 }
 
-type InitRequest struct {
-	Email     string `json:"email"`
-	Amount    int64  `json:"amount"`
-	Reference string `json:"reference"`
-}
 
-type PaystackResponse struct {
-	Status  bool   `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		AuthorizationURL string `json:"authorization_url"`
-		AccessCode       string `json:"access_code"`
-		Reference        string `json:"reference"`
-	} `json:"data"`
-}
 
 func (p *Provider) InitializePayment(email string, amount int64, reference string) (*PaystackResponse, error) {
 	url := fmt.Sprintf("%s/transaction/initialize", os.Getenv("PAYSTACK_BASE_URL"))
@@ -80,4 +66,39 @@ func (p *Provider) InitializePayment(email string, amount int64, reference strin
 	}
 
 	return &paystackResp, nil
+}
+
+
+
+func (p *Provider) ResolveBankAccount(accountNumber, bankCode string) (*BankResolveResponse, error) {
+	url := fmt.Sprintf("%s/bank/resolve?account_number=%s&bank_code=%s",
+		os.Getenv("PAYSTACK_BASE_URL"),
+		accountNumber,
+		bankCode,
+	)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+os.Getenv("PAYSTACK_SECRET_KEY"))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var result BankResolveResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	if !result.Status {
+		return nil, fmt.Errorf("paystack error: %s", result.Message)
+	}
+
+	return &result, nil
 }
