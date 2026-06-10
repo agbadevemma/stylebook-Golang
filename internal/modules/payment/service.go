@@ -34,50 +34,48 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 	}
 
 	// 3. Calculate total amount from booking services
-	totalAmount, err := s.repo.CalculateBookingAmount(booking.ID)
+	amount, err := s.repo.CalculateBookingAmount(tx, booking.ID)
 	if err != nil {
+		tx.Rollback()
 		return "", errors.New("failed to calculate booking amount")
 	}
 
-	// 4. Apply platform fee
-	fee, net := funct.CalculateFee(totalAmount)
+	platformFee, netAmount, totalAmount := funct.CalculateFee(amount)
+	// log.Printf("platformFee: %v, netAmount: %v, totalAmount: %v", platformFee, netAmount, totalAmount)
 
-	// 5. Generate reference (idempotency key)
 	ref := uuid.NewString()
 
-	// 6. Create payment record (pending)
 	payment := &models.Payment{
 		BookingID:     booking.ID,
 		BusinessID:    booking.BusinessID,
 		Reference:     ref,
-		Email:         booking.CustomerEmail, // replace with email if you add it
+		Name:          booking.CustomerName,
+		Email:         booking.CustomerEmail,
 		Amount:        totalAmount,
-		ServiceAmount: totalAmount,
-		PlatformFee:   fee,
-		NetAmount:     net,
+		ServiceAmount: netAmount,
+		PlatformFee:   platformFee,
+		NetAmount:     netAmount,
 		Status:        utils.PaymentPending,
 		Provider:      "paystack",
 	}
 
 	err = s.repo.CreatePayment(tx, payment)
 	if err != nil {
+
 		tx.Rollback()
 		return "", errors.New("failed to create payment record")
 	}
 
-	// 7. Initialize Paystack payment
 	res, err := s.provider.InitializePayment(
 		payment.Email,
 		payment.Amount,
 		payment.Reference,
 	)
-
 	if err != nil {
 		tx.Rollback()
 		return "", errors.New("failed to initialize paystack payment")
 	}
 
-	// 8. Update payment with Paystack response
 	payment.AuthorizationURL = res.Data.AuthorizationURL
 	payment.AccessCode = res.Data.AccessCode
 
@@ -86,10 +84,6 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 		return "", errors.New("failed to update payment initialization")
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		return "", errors.New("transaction commit failed")
-	}
-	// 9. Return redirect URL to frontend
 	return res.Data.AuthorizationURL, nil
 }
 
@@ -112,19 +106,16 @@ func (s *Service) HandleSuccessfulPayment(reference string) error {
 			tx.Rollback()
 		}
 	}()
-	
-	// 1. Find payment by reference
+
 	payment, err := s.repo.GetPaymentByReference(reference)
 	if err != nil {
 		return errors.New("payment not found")
 	}
 
-	// 2. Idempotency check (VERY IMPORTANT)
 	if payment.Status == utils.PaymentSuccess {
-		return nil // already processed
+		return nil
 	}
 
-	// 3. Update payment
 	now := time.Now()
 
 	payment.Status = utils.PaymentSuccess
@@ -136,10 +127,15 @@ func (s *Service) HandleSuccessfulPayment(reference string) error {
 		return err
 	}
 
-	// 4. Update booking
-	return s.repo.UpdateBookingStatus(
+	if err = s.repo.UpdateBookingStatus(
 		tx,
 		payment.BookingID,
 		utils.BookingConfirmed,
-	)
+		utils.PaymentSuccess,
+	); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }

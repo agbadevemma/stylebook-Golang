@@ -16,20 +16,24 @@ func NewRepository(db *gorm.DB) *Repository {
 }
 
 func (r *Repository) CreatePayment(tx *gorm.DB, payment *models.Payment) error {
-	tx = r.db.Create(payment)
-	return tx.Error
+	return tx.Create(payment).Error
 }
 
 func (r *Repository) UpdatePayment(tx *gorm.DB, payment *models.Payment) error {
-	tx = r.db.Save(payment)
-	return tx.Error
+
+	return tx.Save(payment).Error
 }
 
-func (r *Repository) CalculateBookingAmount(bookingID uuid.UUID) (int64, error) {
+func (r *Repository) CalculateBookingAmount(tx *gorm.DB, bookingID uuid.UUID) (int64, error) {
 	var totalAmount int64
-	result := r.db.Model(&models.BookingService{}).Where("booking_id = ?", bookingID).Pluck("price * quantity", &totalAmount)
-	if result.Error != nil {
-		return 0, result.Error
+	err := tx.
+		Model(&models.BookingService{}).
+		Where("booking_id = ?", bookingID).
+		Select("COALESCE(SUM(price), 0)").
+		Scan(&totalAmount).Error
+
+	if err != nil {
+		return 0, err
 	}
 	return totalAmount, nil
 }
@@ -53,12 +57,16 @@ func (r *Repository) GetPaymentByReference(reference string) (*models.Payment, e
 func (r *Repository) UpdateBookingStatus(
 	tx *gorm.DB,
 	bookingID uuid.UUID,
-	status utils.BookingStatus,
+	bookingStatus utils.BookingStatus,
+	paymentStatus utils.PaymentStatus,
 ) error {
 
 	return tx.
 		Model(&models.Booking{}).
 		Where("id = ?", bookingID).
-		Update("status", status).
+		Updates(map[string]any{
+			"booking_status": bookingStatus,
+			"payment_status": paymentStatus,
+		}).
 		Error
 }
