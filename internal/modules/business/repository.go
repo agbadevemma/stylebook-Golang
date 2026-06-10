@@ -27,7 +27,6 @@ func (r *Repository) GetBusinessByID(id uuid.UUID) (*models.Business, error) {
 	return &business, nil
 }
 
-
 func (r *Repository) GetBusinessByUserID(id uuid.UUID) (*models.Business, error) {
 	var business models.Business
 	err := r.db.Where("owner_id = ?", id).First(&business).Error
@@ -35,4 +34,21 @@ func (r *Repository) GetBusinessByUserID(id uuid.UUID) (*models.Business, error)
 		return nil, err
 	}
 	return &business, nil
+}
+
+func (r *Repository) UpdateBusinessBankDetails(
+	businessID uuid.UUID,
+	accountNumber string,
+	transferCode string,
+	bankName string,
+	bankCode string,
+) error {
+	return r.db.Model(&models.Business{}).
+		Where("id = ?", businessID).
+		Updates(map[string]any{
+			"account_number": accountNumber,
+			"bank_name":      bankName,
+			"transfer_code":  transferCode,
+			"bank_code":      bankCode,
+		}).Error
 }
