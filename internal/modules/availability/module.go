@@ -2,12 +2,10 @@ package availability
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/stylebookgo/agbadevemma/internal/middleware"
 	"github.com/stylebookgo/agbadevemma/internal/modules/blockedtime"
 	"github.com/stylebookgo/agbadevemma/internal/modules/booking"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
-	"github.com/stylebookgo/agbadevemma/internal/utils"
 )
 
 type Module struct {
@@ -25,7 +23,7 @@ func NewModule(bookingWriter booking.BookingWriter, blockedTimesWriter blockedti
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	availability := api.Group("/availability")
 	{
-		availability.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Admin))
+
 		availability.GET("/range", m.handler.GetAvailability)
 	}
 }

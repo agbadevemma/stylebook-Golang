@@ -33,9 +33,31 @@ func (s *Service) GetAvailabilityRange(
 	startDate, endDate time.Time,
 ) ([]DayAvailability, error) {
 
-	if _, err := s.businessWriter.GetBusinessByID(businessID); err != nil {
+	business, err := s.businessWriter.GetBusinessByID(businessID)
+	if err != nil {
 		return nil, errors.New("business not found")
 	}
+
+	loc, err := time.LoadLocation(business.Timezone)
+	if err != nil {
+		return nil, err
+	}
+
+	startDate = time.Date(
+		startDate.Year(),
+		startDate.Month(),
+		startDate.Day(),
+		0, 0, 0, 0,
+		loc,
+	)
+
+	endDate = time.Date(
+		endDate.Year(),
+		endDate.Month(),
+		endDate.Day(),
+		23, 59, 59, 0,
+		loc,
+	)
 
 	var response []DayAvailability
 
@@ -63,6 +85,11 @@ func (s *Service) getDaySlots(
 	day := int(date.Weekday())
 
 	hour, err := s.businessHourWriter.GetBusinessHour(businessID, day)
+
+	if hour.StartTime == "" || hour.EndTime == "" {
+		return []SlotResponse{}, nil
+	}
+
 	if err != nil || !hour.IsOpen {
 		return []SlotResponse{}, nil
 	}
@@ -76,25 +103,33 @@ func (s *Service) getDaySlots(
 		return nil, err
 	}
 
-	blocked, _ := s.blockedTimesWriter.GetBlockedTimes(businessID, start, end)
-	bookings, _ := s.bookingWriter.GetBookings(businessID, start, end)
+	blocked, err := s.blockedTimesWriter.GetBlockedTimes(businessID, start, end)
+	if err != nil {
+		return nil, err
+	}
 
-	slotDuration := 30 // or service-based later
+	bookings, err := s.bookingWriter.GetBookings(businessID, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	slotDuration := 30 * time.Minute // or service-based later
+	step := 15 * time.Minute
 
 	var slots []SlotResponse
 	cursor := start
 
-	for cursor.Add(time.Duration(slotDuration) * time.Minute).Before(end) {
+	for !cursor.Add(slotDuration).After(end) {
 
-		slotEnd := cursor.Add(time.Duration(slotDuration) * time.Minute)
+		slotEnd := cursor.Add(slotDuration)
 
 		if funct.IsBlocked(cursor, slotEnd, blocked) {
-			cursor = cursor.Add(15 * time.Minute)
+			cursor = cursor.Add(step)
 			continue
 		}
 
 		if funct.IsBooked(cursor, slotEnd, bookings) {
-			cursor = cursor.Add(15 * time.Minute)
+			cursor = cursor.Add(step)
 			continue
 		}
 
