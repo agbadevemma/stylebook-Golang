@@ -1,10 +1,10 @@
 package booking
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 )
 
@@ -25,16 +25,11 @@ func (h *Handler) CreateBooking(c *gin.Context) {
 		return
 	}
 
-	businessID, ok := c.MustGet("businessId").(uuid.UUID)
-	if !ok {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid Business Id"))
-		return
-	}
-	res, err := h.service.CreateBooking(&req, businessID)
+	res, err := h.service.CreateBooking(&req, req.BusinessID)
 
 	if err != nil {
-
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("An error occurred while creating the booking"))
+		log.Printf("%v", err.Error())
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("An error occurred while creating the booking"))
 
 		return
 	}

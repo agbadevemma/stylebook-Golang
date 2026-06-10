@@ -2,6 +2,7 @@ package booking
 
 import (
 	"errors"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,6 +10,7 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/modules/blockedtime"
 	"github.com/stylebookgo/agbadevemma/internal/modules/bookingservice"
+	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
 	"github.com/stylebookgo/agbadevemma/internal/modules/payment"
 	"github.com/stylebookgo/agbadevemma/internal/modules/service"
@@ -16,6 +18,7 @@ import (
 
 type Service struct {
 	repo                 *Repository
+	businessWriter       business.BusinessWriter
 	bookingserviceWriter bookingservice.BookingServiceWriter
 	businessHourWriter   businesshour.BusinessHourWriter
 	blockedTimesWriter   blockedtime.BlockedTimesWriter
@@ -23,12 +26,16 @@ type Service struct {
 	paymentWriter        payment.PaymentWriter
 }
 
-func NewService(repo *Repository, bookingserviceWriter bookingservice.BookingServiceWriter, serviceWriter service.ServiceWriter, paymentWriter payment.PaymentWriter) *Service {
-	return &Service{repo: repo, bookingserviceWriter: bookingserviceWriter, serviceWriter: serviceWriter, paymentWriter: paymentWriter}
+func NewService(repo *Repository, bookingserviceWriter bookingservice.BookingServiceWriter, businessHourWriter businesshour.BusinessHourWriter, serviceWriter service.ServiceWriter, blockedTimesWriter blockedtime.BlockedTimesWriter, paymentWriter payment.PaymentWriter, businessWriter business.BusinessWriter) *Service {
+	return &Service{repo: repo, bookingserviceWriter: bookingserviceWriter, businessHourWriter: businessHourWriter, blockedTimesWriter: blockedTimesWriter, serviceWriter: serviceWriter, paymentWriter: paymentWriter, businessWriter: businessWriter}
 }
 
 func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID) (BookingResponse, error) {
 	tx := s.repo.db.Begin()
+
+	if tx.Error != nil {
+		return BookingResponse{}, tx.Error
+	}
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -36,11 +43,51 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 		}
 	}()
 
-	startTime := req.StartTime
-	endTime := startTime.Add(time.Duration(req.TotalDuration) * time.Minute)
+	// ================================
+	// 1. LOAD SERVICES + TOTAL DURATION
+	// ================================
+	var (
+		selectedServices []*models.Service
+		totalDuration    int // minutes
+	)
+
+	for _, serviceID := range req.ServiceIDs {
+		service, err := s.serviceWriter.GetServiceByID(serviceID)
+		if err != nil {
+			tx.Rollback()
+			return BookingResponse{}, err
+		}
+
+		selectedServices = append(selectedServices, service)
+		totalDuration += service.Duration
+	}
 
 	// ================================
-	// 1. LOCK BUSINESS (light safety lock)
+	// 2. GET BUSINESS + TIMEZONE
+	// ================================
+	business, err := s.businessWriter.GetBusinessByID(businessID)
+	if err != nil {
+		tx.Rollback()
+		return BookingResponse{}, err
+	}
+
+	loc, err := time.LoadLocation(business.Timezone)
+	if err != nil {
+		tx.Rollback()
+		return BookingResponse{}, err
+	}
+
+	startLocal := req.StartTime.In(loc)
+	startTimeUTC := startLocal.UTC()
+
+	endTimeUTC := startTimeUTC.Add(
+		time.Duration(totalDuration) * time.Minute,
+	)
+
+	// log.Printf("booking start=%v end=%v", startTimeUTC, endTimeUTC)
+
+	// ================================
+	// 4. LOCK BUSINESS
 	// ================================
 	if err := tx.Exec(`
 		SELECT id FROM businesses WHERE id = ? FOR UPDATE
@@ -50,10 +97,9 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	}
 
 	// ================================
-	// 2. CHECK BUSINESS HOURS
+	// 5. BUSINESS HOURS CHECK (LOCAL TIME)
 	// ================================
-	day := int(startTime.Weekday())
-
+	day := int(startLocal.Weekday())
 	businessHour, err := s.businessHourWriter.GetBusinessHour(businessID, day)
 	if err != nil {
 		tx.Rollback()
@@ -65,25 +111,28 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 		return BookingResponse{}, errors.New("business is closed on this day")
 	}
 
-	openTime, err := funct.Combine(startTime, businessHour.StartTime)
+	openLocal, err := funct.Combine(startLocal, businessHour.StartTime)
 	if err != nil {
 		tx.Rollback()
 		return BookingResponse{}, err
 	}
 
-	closeTime, err := funct.Combine(startTime, businessHour.EndTime)
+	closeLocal, err := funct.Combine(startLocal, businessHour.EndTime)
 	if err != nil {
 		tx.Rollback()
 		return BookingResponse{}, err
 	}
 
-	if startTime.Before(openTime) || endTime.After(closeTime) {
+	openUTC := openLocal.UTC()
+	closeUTC := closeLocal.UTC()
+
+	if startTimeUTC.Before(openUTC) || endTimeUTC.After(closeUTC) {
 		tx.Rollback()
 		return BookingResponse{}, errors.New("booking outside business hours")
 	}
 
 	// ================================
-	// 3. LOCK OVERLAPPING BOOKINGS (IMPORTANT PART)
+	// 6. OVERLAP CHECK (UTC ONLY)
 	// ================================
 	var conflicts []models.Booking
 
@@ -94,7 +143,7 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 		AND start_time < ?
 		AND end_time > ?
 		FOR UPDATE
-	`, businessID, endTime, startTime).Scan(&conflicts).Error; err != nil {
+	`, businessID, endTimeUTC, startTimeUTC).Scan(&conflicts).Error; err != nil {
 		tx.Rollback()
 		return BookingResponse{}, err
 	}
@@ -105,25 +154,35 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	}
 
 	// ================================
-	// 4. CHECK BLOCKED TIMES
+	// 7. BLOCKED TIMES CHECK
 	// ================================
-	blocked, _ := s.blockedTimesWriter.GetBlockedTimes(businessID, startTime, endTime)
+	blocked, err := s.blockedTimesWriter.GetBlockedTimes(
+		businessID,
+		startTimeUTC,
+		endTimeUTC,
+	)
+	log.Printf("%v", blocked)
+	if err != nil {
+		tx.Rollback()
+		return BookingResponse{}, err
+	}
 
-	if funct.IsBlocked(startTime, endTime, blocked) {
+	if funct.IsBlocked(startTimeUTC, endTimeUTC, blocked) {
 		tx.Rollback()
 		return BookingResponse{}, errors.New("time slot is blocked")
 	}
 
 	// ================================
-	// 5. CREATE BOOKING
+	// 8. CREATE BOOKING
 	// ================================
 	booking := &models.Booking{
 		CustomerName:  req.CustomerName,
 		CustomerPhone: req.CustomerPhone,
+		CustomerEmail: req.CustomerEmail,
 		BusinessID:    businessID,
-		TotalDuration: req.TotalDuration,
-		StartTime:     startTime,
-		EndTime:       endTime,
+		TotalDuration: totalDuration,
+		StartTime:     startTimeUTC,
+		EndTime:       endTimeUTC,
 	}
 
 	if err := s.repo.CreateBooking(tx, booking); err != nil {
@@ -132,11 +191,11 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	}
 
 	// ================================
-	// 6. ATTACH SERVICES
+	// 9. ATTACH SERVICES
 	// ================================
-	for _, serviceID := range req.ServiceIDs {
+	for _, sID := range req.ServiceIDs {
 
-		service, err := s.serviceWriter.GetServiceByID(serviceID)
+		service, err := s.serviceWriter.GetServiceByID(sID)
 		if err != nil {
 			tx.Rollback()
 			return BookingResponse{}, err
@@ -144,7 +203,7 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 
 		bookingService := &models.BookingService{
 			BookingID: booking.ID,
-			ServiceID: serviceID,
+			ServiceID: service.ID,
 			Name:      service.Name,
 			Duration:  service.Duration,
 			Price:     service.Price,
@@ -156,10 +215,17 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 		}
 	}
 
-	str, err := s.paymentWriter.InitializePayment(tx, booking)
+	// ================================
+	// 10. PAYMENT
+	// ================================
+	paymentURL, err := s.paymentWriter.InitializePayment(tx, booking)
+	if err != nil {
+		tx.Rollback()
+		return BookingResponse{}, err
+	}
 
 	return BookingResponse{
 		BookingID:  booking.ID,
-		PaymentURL: str,
+		PaymentURL: paymentURL,
 	}, tx.Commit().Error
 }
