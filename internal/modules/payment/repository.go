@@ -70,3 +70,33 @@ func (r *Repository) UpdateBookingStatus(
 		}).
 		Error
 }
+
+
+func (r *Repository) GetPaymentsByBusiness(
+	businessID uuid.UUID,
+	limit int,
+	offset int,
+) ([]models.Payment, int64, error) {
+
+	var payments []models.Payment
+	var total int64
+
+	query := r.db.Model(&models.Payment{}).
+		Where("business_id = ?", businessID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := query.
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&payments).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return payments, total, nil
+}

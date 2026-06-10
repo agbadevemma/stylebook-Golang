@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 )
 
@@ -54,4 +56,42 @@ func (h *Handler) PaystackWebhook(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, utils.SuccessResponse("payment processed successfully", nil))
+}
+
+func (h *Handler) GetBusinessTransactions(c *gin.Context) {
+	busID, ok := c.Get("businessId")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("missing business id"))
+		return
+	}
+
+	businessID, ok := busID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid business id"))
+		return
+	}
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid limit"))
+		return
+	}
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid offset"))
+		return
+	}
+
+	data, total, err := h.service.GetBusinessTransactions(businessID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch transactions"))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("Succe", map[string]any{
+		"data":   data,
+		"total":  total,
+		"limit":  limit,
+		"offset": offset,
+	}))
 }

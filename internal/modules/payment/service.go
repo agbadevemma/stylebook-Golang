@@ -112,6 +112,10 @@ func (s *Service) HandleSuccessfulPayment(reference string) error {
 		return errors.New("payment not found")
 	}
 
+	if payment.IsVerified {
+		return nil
+	}
+	
 	if payment.Status == utils.PaymentSuccess {
 		return nil
 	}
@@ -138,4 +142,13 @@ func (s *Service) HandleSuccessfulPayment(reference string) error {
 	}
 
 	return tx.Commit().Error
+}
+
+func (s *Service) GetBusinessTransactions(
+	businessID uuid.UUID,
+	limit int,
+	offset int,
+) ([]models.Payment, int64, error) {
+
+	return s.repo.GetPaymentsByBusiness(businessID, limit, offset)
 }
