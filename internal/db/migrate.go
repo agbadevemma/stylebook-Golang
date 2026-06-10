@@ -16,6 +16,8 @@ func Migrate(db *Database) {
 		&models.BlockedTime{},
 		&models.Payment{},
 		&models.BookingService{},
+		&models.Ledger{},
+		&models.Withdrawal{},
 	)
 
 	if err != nil {
