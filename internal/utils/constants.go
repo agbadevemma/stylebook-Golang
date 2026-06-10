@@ -9,6 +9,7 @@ const (
 )
 
 type PaymentStatus string
+
 const (
 	PaymentPending   PaymentStatus = "pending"
 	PaymentSuccess   PaymentStatus = "success"
@@ -31,4 +32,20 @@ type UserRole string
 const (
 	Admin  UserRole = "admin"
 	Barber UserRole = "barber"
+)
+
+type WithdrawalStatus string
+
+const (
+	WithdrawalPending    WithdrawalStatus = "pending"
+	WithdrawalProcessing WithdrawalStatus = "processing"
+	WithdrawalSuccess    WithdrawalStatus = "success"
+	WithdrawalFailed     WithdrawalStatus = "failed"
+)
+
+type LedgerType string
+
+const (
+	LedgerCredit LedgerType = "credit"
+	LedgerDebit  LedgerType = "debit"
 )

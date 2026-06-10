@@ -11,17 +11,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/funct"
 	"github.com/stylebookgo/agbadevemma/internal/models"
+	"github.com/stylebookgo/agbadevemma/internal/modules/ledger"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo     *Repository
-	provider *Provider
+	repo         *Repository
+	provider     *Provider
+	ledgerWriter ledger.LedgerWriter
 }
 
-func NewService(repo *Repository, provider *Provider) *Service {
-	return &Service{repo: repo, provider: provider}
+func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.LedgerWriter) *Service {
+	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter}
 }
 
 func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (string, error) {
@@ -115,7 +117,7 @@ func (s *Service) HandleSuccessfulPayment(reference string) error {
 	if payment.IsVerified {
 		return nil
 	}
-	
+
 	if payment.Status == utils.PaymentSuccess {
 		return nil
 	}
@@ -137,6 +139,21 @@ func (s *Service) HandleSuccessfulPayment(reference string) error {
 		utils.BookingConfirmed,
 		utils.PaymentSuccess,
 	); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	ledger := &models.Ledger{
+		ID:         uuid.New(),
+		BusinessID: payment.BusinessID,
+		Amount:     payment.ServiceAmount,
+		Type:       utils.LedgerCredit,
+		Reference:  "payment",
+		Reason:     "payment for service",
+		CreatedAt:  time.Now(),
+	}
+
+	if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
 		tx.Rollback()
 		return err
 	}
