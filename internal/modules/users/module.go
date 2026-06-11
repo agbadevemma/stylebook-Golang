@@ -15,9 +15,9 @@ func NewModule(db *gorm.DB, bus business.BusinessWriter, busHour businesshour.Bu
 
 	userRepo := NewRepository(db)
 	userService := NewService(userRepo, bus, busHour)
-	userHadler := NewHandler(userService)
+	userHandler := NewHandler(userService)
 
-	return &Module{handler: userHadler}
+	return &Module{handler: userHandler}
 }
 
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
