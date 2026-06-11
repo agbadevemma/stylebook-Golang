@@ -4,6 +4,7 @@ type TransferRequest struct {
 	Source    string `json:"source"`
 	Amount    int64  `json:"amount"`
 	Recipient string `json:"recipient"`
+	Reference string `json:"reference"`
 	Reason    string `json:"reason"`
 }
 

@@ -15,5 +15,5 @@ type Withdrawal struct {
 
 	RecipientCode string
 
-	PaystackTransferCode string
+	TransferReference string
 }

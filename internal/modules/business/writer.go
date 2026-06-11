@@ -13,7 +13,7 @@ type BusinessWriter interface {
 	UpdateBusinessBankDetails(
 		businessID uuid.UUID,
 		accountNumber string,
-		transferCode string,
+		transferRecipient string,
 		bankName string,
 		bankCode string,
 	) error
