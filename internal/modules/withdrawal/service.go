@@ -23,6 +23,17 @@ func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.Ledger
 }
 
 func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64) (*TransferResponse, error) {
+	tx := s.repo.db.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
 
 	balance, err := s.ledgerWriter.GetBusinessBalance(businessID)
 	if err != nil {
@@ -45,14 +56,14 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64) (*Transfe
 	transferRef := fmt.Sprintf("acv_%s", uuid.NewString())
 
 	withdrawal := &models.Withdrawal{
-		BusinessID:        businessID,
-		Amount:            amount,
-		Status:            utils.WithdrawalPending,
-		RecipientCode:     business.TransferRecipient,
-		TransferReference: transferRef,
+		BusinessID:    businessID,
+		Amount:        amount,
+		Status:        utils.WithdrawalPending,
+		RecipientCode: business.TransferRecipient,
 	}
 
-	if err := s.repo.CreateWithdrawal(withdrawal); err != nil {
+	if err := s.repo.CreateWithdrawal(tx, withdrawal); err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -65,15 +76,19 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64) (*Transfe
 	})
 
 	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
-	// withdrawal.TransferReference = res.Data.TransferCode
-	// withdrawal.Status = utils.WithdrawalProcessing
-
-	if err := s.repo.UpdateWithdrawal(businessID, res.Data.TransferCode, utils.WithdrawalProcessing); err != nil {
+	withdrawal.PaystackTransferCode = res.Data.TransferCode
+	withdrawal.Status = utils.WithdrawalProcessing
+	if err := s.repo.UpdateWithdrawal(tx, withdrawal); err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
 	return res, nil
 }
