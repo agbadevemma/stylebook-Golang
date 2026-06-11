@@ -19,12 +19,10 @@ func (r *Repository) CreateWithdrawal(withdrawal *models.Withdrawal) error {
 	return r.db.Create(withdrawal).Error
 }
 
-func (r *Repository) UpdateWithdrawal(businessID uuid.UUID, transferCode string, status utils.WithdrawalStatus) error {
+func (r *Repository) UpdateWithdrawal(businessID uuid.UUID, transferReference string, status utils.WithdrawalStatus) error {
 	return r.db.Model(&models.Withdrawal{}).Where("id = ?", businessID).
 		Updates(map[string]any{
-			"account_number": accountNumber,
-			"bank_name":      bankName,
-			"transfer_code":  transferCode,
-			"bank_code":      bankCode,
+			"transfer_reference": transferReference,
+			"status":             status,
 		}).Error
 }
