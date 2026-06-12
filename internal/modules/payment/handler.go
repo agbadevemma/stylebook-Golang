@@ -37,21 +37,24 @@ func (h *Handler) PaymentWebhook(c *gin.Context) {
 		return
 	}
 
-	var event PaymentWebhookEvent
+	var event utils.PaystackWebhookEvent
 	if err := json.Unmarshal(body, &event); err != nil {
 		log.Printf("invalid webhook payload: %v", err)
 		c.JSON(http.StatusOK, utils.SuccessResponse("acknowledged", nil))
 		return
 	}
 
-	err = h.service.HandlePaymentWebhook(
-		event.Event,
-		event.Data.Reference,
-	)
+	// err = h.service.HandlePaymentWebhook(
+	// 	event.Event,
+	// 	event.Data.Reference,
+	// )
 
-	if err != nil {
+	// if err != nil {
 
-		log.Printf("payment webhook processing error: %v", err)
+	// 	log.Printf("payment webhook processing error: %v", err)
+	// }
+	if err := h.service.HandleEvent(event); err != nil {
+		log.Printf("webhook processing error: %v", err)
 	}
 
 	c.JSON(http.StatusOK, utils.SuccessResponse("acknowledged", nil))

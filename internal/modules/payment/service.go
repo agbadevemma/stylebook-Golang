@@ -5,6 +5,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
+	"log"
 	"os"
 	"time"
 
@@ -13,22 +14,24 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/ledger"
+	"github.com/stylebookgo/agbadevemma/internal/modules/withdrawal"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo         *Repository
-	provider     *Provider
-	business     business.BusinessWriter
-	ledgerWriter ledger.LedgerWriter
+	repo             *Repository
+	provider         *Provider
+	business         business.BusinessWriter
+	ledgerWriter     ledger.LedgerWriter
+	withdrawalWriter withdrawal.WithdrawalWriter
 }
 
-func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.LedgerWriter, business business.BusinessWriter) *Service {
-	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter, business: business}
+func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.LedgerWriter, business business.BusinessWriter, withdrawalWriter withdrawal.WithdrawalWriter) *Service {
+	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter, business: business, withdrawalWriter: withdrawalWriter}
 }
 
-func (s *Service) InitializePayment(tx *gorm.DB,booking *models.Booking) (string, error) {
+func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (string, error) {
 
 	existingPayment, err := s.repo.GetPaymentByBookingID(tx, booking.ID)
 	if err == nil && existingPayment != nil {
@@ -89,7 +92,6 @@ func (s *Service) InitializePayment(tx *gorm.DB,booking *models.Booking) (string
 		return "", errors.New("failed to update payment initialization")
 	}
 
-	
 	return res.Data.AuthorizationURL, nil
 }
 
@@ -103,7 +105,26 @@ func (s *Service) VerifySignature(payload []byte, signature string) bool {
 	return expected == signature
 }
 
-func (s *Service) HandlePaymentWebhook(event string, reference string) error {
+func (s *Service) HandleEvent(event utils.PaystackWebhookEvent) error {
+
+	switch event.Event {
+
+	// 💳 PAYMENT EVENTS
+	case "charge.success", "charge.failed", "charge.abandoned", "charge.refunded":
+		return s.handlePaymentEvent(event)
+
+	// 💸 TRANSFER EVENTS
+	case "transfer.success", "transfer.failed", "transfer.reversed":
+		return s.withdrawalWriter.HandleTransferEvent(event)
+
+	default:
+		// ignore unknown events safely
+		log.Printf("ignored event: %s", event.Event)
+		return nil
+	}
+}
+
+func (s *Service) handlePaymentEvent(event utils.PaystackWebhookEvent) error {
 	tx := s.repo.db.Begin()
 	if tx.Error != nil {
 		return tx.Error
@@ -116,13 +137,13 @@ func (s *Service) HandlePaymentWebhook(event string, reference string) error {
 		}
 	}()
 
-	payment, err := s.repo.GetPaymentByReference(tx, reference)
+	payment, err := s.repo.GetPaymentByReference(tx, event.Data.Reference)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	switch event {
+	switch event.Event {
 
 	case "charge.success":
 		return s.handlePaymentSuccess(tx, payment)
