@@ -5,7 +5,7 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 )
 
-type PaystackWebhookEvent struct {
+type PaymentWebhookEvent struct {
 	Event string `json:"event"`
 
 	Data struct {

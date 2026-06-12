@@ -21,7 +21,7 @@ func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	payment := api.Group("/payment")
 	{
 
-		payment.POST("/webhook", m.handler.PaystackWebhook)
+		payment.POST("/webhook", m.handler.PaymentWebhook)
 		payment.GET("/history", middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Admin), m.handler.GetBusinessTransactions)
 		payment.GET("/bank/resolve", middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Admin), m.handler.ResolveBankAccount)
 		payment.POST(

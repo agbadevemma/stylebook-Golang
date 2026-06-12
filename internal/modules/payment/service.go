@@ -28,23 +28,26 @@ func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.Ledger
 	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter, business: business}
 }
 
-func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (string, error) {
+func (s *Service) InitializePayment(tx *gorm.DB,booking *models.Booking) (string, error) {
 
-	// 2. Prevent duplicate payment
-	existingPayment, err := s.repo.GetPaymentByBookingID(booking.ID)
+	existingPayment, err := s.repo.GetPaymentByBookingID(tx, booking.ID)
+	if err == nil && existingPayment != nil {
+		if existingPayment.Status == utils.PaymentSuccess {
+			return "", errors.New("payment already completed for this booking")
+		}
 
-	if err == nil && existingPayment.Status == utils.PaymentSuccess {
-		return "", errors.New("payment already completed for this booking")
+		if existingPayment.AuthorizationURL != "" {
+			return existingPayment.AuthorizationURL, nil
+		}
 	}
 
-	// 3. Calculate total amount from booking services
-	amount, err := s.repo.CalculateBookingAmount(tx, booking.ID)
+	serviceAmount, err := s.repo.CalculateBookingAmount(tx, booking.ID)
 	if err != nil {
 		tx.Rollback()
 		return "", errors.New("failed to calculate booking amount")
 	}
 
-	platformFee, netAmount, totalAmount := funct.CalculateFee(amount)
+	platformFee, netAmount, totalAmount := funct.CalculateFee(serviceAmount)
 	// log.Printf("platformFee: %v, netAmount: %v, totalAmount: %v", platformFee, netAmount, totalAmount)
 
 	ref := uuid.NewString()
@@ -56,16 +59,14 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 		Name:          booking.CustomerName,
 		Email:         booking.CustomerEmail,
 		Amount:        totalAmount,
-		ServiceAmount: netAmount,
+		ServiceAmount: serviceAmount,
 		PlatformFee:   platformFee,
 		NetAmount:     netAmount,
 		Status:        utils.PaymentPending,
 		Provider:      "paystack",
 	}
 
-	err = s.repo.CreatePayment(tx, payment)
-	if err != nil {
-
+	if err := s.repo.CreatePayment(tx, payment); err != nil {
 		tx.Rollback()
 		return "", errors.New("failed to create payment record")
 	}
@@ -88,6 +89,7 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 		return "", errors.New("failed to update payment initialization")
 	}
 
+	
 	return res.Data.AuthorizationURL, nil
 }
 
@@ -101,26 +103,49 @@ func (s *Service) VerifySignature(payload []byte, signature string) bool {
 	return expected == signature
 }
 
-func (s *Service) HandleSuccessfulPayment(reference string) error {
-
+func (s *Service) HandlePaymentWebhook(event string, reference string) error {
 	tx := s.repo.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
 
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
+			panic(r)
 		}
 	}()
 
-	payment, err := s.repo.GetPaymentByReference(reference)
+	payment, err := s.repo.GetPaymentByReference(tx, reference)
 	if err != nil {
-		return errors.New("payment not found")
+		tx.Rollback()
+		return err
 	}
 
-	if payment.IsVerified {
+	switch event {
+
+	case "charge.success":
+		return s.handlePaymentSuccess(tx, payment)
+
+	case "charge.failed":
+		return s.handlePaymentFailed(tx, payment)
+
+	case "charge.abandoned":
+		return s.handlePaymentAbandoned(tx, payment)
+
+	case "refund.processed":
+		return s.handlePaymentRefund(tx, payment)
+
+	default:
+		tx.Rollback()
 		return nil
 	}
+}
+
+func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) error {
 
 	if payment.Status == utils.PaymentSuccess {
+		tx.Rollback()
 		return nil
 	}
 
@@ -135,7 +160,7 @@ func (s *Service) HandleSuccessfulPayment(reference string) error {
 		return err
 	}
 
-	if err = s.repo.UpdateBookingStatus(
+	if err := s.repo.UpdateBookingStatus(
 		tx,
 		payment.BookingID,
 		utils.BookingConfirmed,
@@ -145,21 +170,57 @@ func (s *Service) HandleSuccessfulPayment(reference string) error {
 		return err
 	}
 
-	ledger := &models.Ledger{
-		ID:         uuid.New(),
-		BusinessID: payment.BusinessID,
-		Amount:     payment.ServiceAmount,
-		Type:       utils.LedgerCredit,
-		Reference:  "payment",
-		Reason:     "payment for service",
-		CreatedAt:  time.Now(),
+	return tx.Commit().Error
+}
+
+func (s *Service) handlePaymentFailed(tx *gorm.DB, payment *models.Payment) error {
+
+	if payment.Status == utils.PaymentSuccess {
+		tx.Rollback()
+		return nil
 	}
 
-	if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
+	payment.Status = utils.PaymentFailed
+
+	if err := s.repo.UpdatePayment(tx, payment); err != nil {
 		tx.Rollback()
 		return err
 	}
 
+	return tx.Commit().Error
+}
+func (s *Service) handlePaymentAbandoned(tx *gorm.DB, payment *models.Payment) error {
+
+	if payment.Status == utils.PaymentSuccess {
+		tx.Rollback()
+		return nil
+	}
+
+	payment.Status = utils.PaymentAbandoned
+
+	if err := s.repo.UpdatePayment(tx, payment); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
+func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) error {
+
+	if payment.Status == utils.PaymentRefunded {
+		tx.Rollback()
+		return nil
+	}
+
+	payment.Status = utils.PaymentRefunded
+
+	if err := s.repo.UpdatePayment(tx, payment); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// optional: reverse ledger entry
 	return tx.Commit().Error
 }
 

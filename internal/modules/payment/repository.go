@@ -38,17 +38,23 @@ func (r *Repository) CalculateBookingAmount(tx *gorm.DB, bookingID uuid.UUID) (i
 	return totalAmount, nil
 }
 
-func (r *Repository) GetPaymentByBookingID(bookingID uuid.UUID) (*models.Payment, error) {
+func (r *Repository) GetPaymentByBookingID(tx *gorm.DB, bookingID uuid.UUID) (*models.Payment, error) {
 	var payment models.Payment
-	if err := r.db.Where("booking_id = ?", bookingID).First(&payment).Error; err != nil {
+	if tx == nil {
+		tx = r.db
+	}
+	if err := tx.Where("booking_id = ?", bookingID).First(&payment).Error; err != nil {
 		return nil, err
 	}
 	return &payment, nil
 }
 
-func (r *Repository) GetPaymentByReference(reference string) (*models.Payment, error) {
+func (r *Repository) GetPaymentByReference(tx *gorm.DB, reference string) (*models.Payment, error) {
 	var payment models.Payment
-	if err := r.db.Where("reference = ?", reference).First(&payment).Error; err != nil {
+	if tx == nil {
+		tx = r.db
+	}
+	if err := tx.Where("reference = ?", reference).First(&payment).Error; err != nil {
 		return nil, err
 	}
 	return &payment, nil
@@ -70,7 +76,6 @@ func (r *Repository) UpdateBookingStatus(
 		}).
 		Error
 }
-
 
 func (r *Repository) GetPaymentsByBusiness(
 	businessID uuid.UUID,
