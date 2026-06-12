@@ -15,5 +15,6 @@ type Withdrawal struct {
 
 	RecipientCode string
 
-	PaystackTransferCode string
+	PaystackTransferCode string `gorm:"type:varchar(100);uniqueIndex"`
+	TransferReference    string `gorm:"type:varchar(100);uniqueIndex;not null"`
 }
