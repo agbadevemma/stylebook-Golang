@@ -29,7 +29,9 @@ func (r *Repository) GetBusinessByID(id uuid.UUID) (*models.Business, error) {
 
 func (r *Repository) GetBusinessByUserID(id uuid.UUID) (*models.Business, error) {
 	var business models.Business
-	err := r.db.Where("owner_id = ?", id).First(&business).Error
+	err := r.db.Preload("Owner", func(db *gorm.DB) *gorm.DB {
+		return db.Omit("password")
+	}).Where("owner_id = ?", id).First(&business).Error
 	if err != nil {
 		return nil, err
 	}
