@@ -12,6 +12,7 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/modules/payment"
 	"github.com/stylebookgo/agbadevemma/internal/modules/service"
 	"github.com/stylebookgo/agbadevemma/internal/modules/users"
+	"github.com/stylebookgo/agbadevemma/internal/modules/withdrawal"
 	"gorm.io/gorm"
 )
 
@@ -26,12 +27,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	paymentRepo := payment.NewRepository(db)
 	ledgerRepo := ledger.NewRepository(db)
 	paymentProvider := payment.NewProvider()
-	paymentService := payment.NewService(paymentRepo, paymentProvider, ledgerRepo, businessRepo)
+	withdrawalRepo := withdrawal.NewRepository(db)
+	withdrawalProvider := withdrawal.NewProvider()
+	withdrawalService := withdrawal.NewService(withdrawalRepo, withdrawalProvider, ledgerRepo, businessRepo)
+
+	paymentService := payment.NewService(paymentRepo, paymentProvider, ledgerRepo, businessRepo, withdrawalService)
 	bookingServiceRepo := bookingservice.NewRepository(db)
 
 	users.NewModule(db, businessRepo, businessHourRepo).ModuleRoutes(api)
 	service.NewModule(db, businessRepo).ModuleRoutes(api)
 	payment.NewModule(paymentService).ModuleRoutes(api)
+	withdrawal.NewModule(db, ledgerRepo, businessRepo).ModuleRoutes(api)
 	businesshour.NewModule(db).ModuleRoutes(api)
 	blockedtime.NewModule(db, businessRepo).ModuleRoutes(api)
 	booking.NewModule(db, bookingServiceRepo, businessHourRepo, blockedRepo, serviceRepo, paymentService, businessRepo).ModuleRoutes(api)

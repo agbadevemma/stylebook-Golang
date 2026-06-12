@@ -15,6 +15,7 @@ const (
 	PaymentSuccess   PaymentStatus = "success"
 	PaymentFailed    PaymentStatus = "failed"
 	PaymentAbandoned PaymentStatus = "abandoned"
+	PaymentRefunded  PaymentStatus = "refunded"
 )
 
 type FlowState string
@@ -41,6 +42,7 @@ const (
 	WithdrawalProcessing WithdrawalStatus = "processing"
 	WithdrawalSuccess    WithdrawalStatus = "success"
 	WithdrawalFailed     WithdrawalStatus = "failed"
+	WithdrawalReversed   WithdrawalStatus = "reversed"
 )
 
 type LedgerType string
