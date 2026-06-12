@@ -16,8 +16,6 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-// handler.go
-
 func (h *Handler) CreateWithdrawal(c *gin.Context) {
 	busID, ok := c.Get("businessId")
 	if !ok {
@@ -40,6 +38,11 @@ func (h *Handler) CreateWithdrawal(c *gin.Context) {
 		return
 	}
 
+	if req.Amount <= 0 {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("amount must be greater than zero"))
+		return
+	}
+
 	res, err := h.service.CreateWithdrawal(businessID, req.Amount)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
@@ -51,3 +54,38 @@ func (h *Handler) CreateWithdrawal(c *gin.Context) {
 		"status":       res.Data.Status,
 	}))
 }
+
+// func (h *Handler) PaystackWebhook(c *gin.Context) {
+// 	body, err := io.ReadAll(c.Request.Body)
+// 	if err != nil {
+// 		log.Printf("webhook read error: %v", err)
+// 		c.JSON(http.StatusOK, utils.SuccessResponse("acknowledged", nil))
+// 		return
+// 	}
+
+// 	signature := c.GetHeader("x-paystack-signature")
+
+// 	if !h.service.VerifySignature(body, signature) {
+// 		log.Printf("invalid webhook signature")
+// 		c.JSON(http.StatusOK, utils.SuccessResponse("acknowledged", nil))
+// 		return
+// 	}
+
+// 	var event TransferWebhookEvent
+// 	if err := json.Unmarshal(body, &event); err != nil {
+// 		log.Printf("invalid webhook payload: %v", err)
+// 		c.JSON(http.StatusOK, utils.SuccessResponse("acknowledged", nil))
+// 		return
+// 	}
+
+// 	err = h.service.HandleTransferWebhook(
+// 		event.Data.Reference,
+// 		event.Event,
+// 	)
+
+// 	if err != nil {
+// 		log.Printf("transfer webhook processing failed: %v", err)
+// 	}
+
+// 	c.JSON(http.StatusOK, utils.SuccessResponse("acknowledged", nil))
+// }

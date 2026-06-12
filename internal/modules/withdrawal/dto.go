@@ -16,3 +16,5 @@ type TransferResponse struct {
 		Status       string `json:"status"`
 	} `json:"data"`
 }
+
+

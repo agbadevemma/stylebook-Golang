@@ -11,9 +11,10 @@ import (
 
 type Module struct {
 	handler *Handler
+	service *Service
 }
 
-func NewModule(db *gorm.DB, service *Service, ledgerWriter ledger.LedgerWriter, businesWriter business.BusinessWriter) *Module {
+func NewModule(db *gorm.DB, ledgerWriter ledger.LedgerWriter, businesWriter business.BusinessWriter) *Module {
 	withdrawalRepo := NewRepository(db)
 	withdrawalProvider := NewProvider()
 	withdrawalService := NewService(withdrawalRepo, withdrawalProvider, ledgerWriter, businesWriter)
@@ -21,6 +22,7 @@ func NewModule(db *gorm.DB, service *Service, ledgerWriter ledger.LedgerWriter, 
 
 	return &Module{
 		handler: withdrawalHandler,
+		service: withdrawalService,
 	}
 }
 
@@ -29,7 +31,8 @@ func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	{
 		withdrawal.GET("/create", middleware.JWTAuthMiddleware(),
 			middleware.RoleMiddleware(utils.Admin), m.handler.CreateWithdrawal)
-
 			
+
+
 	}
 }
