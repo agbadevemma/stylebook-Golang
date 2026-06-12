@@ -29,3 +29,17 @@ func (r *Repository) GetBusinessBalance(businessID uuid.UUID) (int64, error) {
 
 	return balance, err
 }
+
+func (r *Repository) LedgerExistsByReference(
+	tx *gorm.DB,
+	reference string,
+	ledgerType utils.LedgerType,
+) (bool, error) {
+	var count int64
+
+	err := tx.Model(&models.Ledger{}).
+		Where("reference = ? AND type = ?", reference, ledgerType).
+		Count(&count).Error
+
+	return count > 0, err
+}
