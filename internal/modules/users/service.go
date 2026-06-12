@@ -160,23 +160,23 @@ func (s *Service) Signup(req *SignupRequest) error {
 	return nil
 }
 
-func (s *Service) Login(req *LoginRequest) (string, error) {
+func (s *Service) Login(req *LoginRequest) (string, *models.Business, error) {
 	user, err := s.repo.GetUserbyEmail(req.Email)
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return "", nil, errors.New("invalid email or password")
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return "", nil, errors.New("invalid email or password")
 	}
 	business, err := s.businessWriter.GetBusinessByUserID(user.ID)
 	if err != nil {
-		return "", errors.New("business not found")
+		return "", nil, errors.New("business not found")
 	}
 	token, err := utils.GenerateToken(user.ID.String(), user.Email, user.Role, business.ID)
 	if err != nil {
-		return "", errors.New("failed to generate token")
+		return "", nil, errors.New("failed to generate token")
 	}
 
-	return token, nil
+	return token, business, nil
 }

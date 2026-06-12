@@ -44,12 +44,15 @@ func (h *Handler) Login(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	token, err := h.service.Login(&req)
+	token, business, err := h.service.Login(&req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("Login Successfully", token))
+	c.JSON(http.StatusOK, utils.SuccessResponse("Login Successfully", map[string]any{
+		"token":    token,
+		"business": business,
+	}))
 
 }
