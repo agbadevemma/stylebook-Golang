@@ -238,7 +238,7 @@ func (s *Service) HandleTransferEvent(event utils.PaystackWebhookEvent) error {
 
 	default:
 		tx.Rollback()
-		return fmt.Errorf("unsupported transfer event: %s", event)
+		return fmt.Errorf("unsupported transfer event: %v", event)
 	}
 
 	if err := s.repo.UpdateWithdrawal(tx, withdrawal); err != nil {
