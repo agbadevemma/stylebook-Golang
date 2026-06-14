@@ -16,9 +16,9 @@ func main() {
 	config.LoadEnv()
 	database := db.Connect()
 
-	// db.Migrate(database)
-	// if os.Getenv("RUN_MIGRATIONS") == "true" {
-	// }
+	if os.Getenv("RUN_MIGRATIONS") == "true" {
+		db.Migrate(database)
+	}
 
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
