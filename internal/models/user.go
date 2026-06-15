@@ -1,16 +1,21 @@
 package models
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 )
 
 type User struct {
 	Base
-	Name       string         `json:"name" gorm:"type:varchar(255);not null"`
-	Email      string         `json:"email" gorm:"type:varchar(255);unique;not null"`
-	Phone      string         `json:"phone" gorm:"type:varchar(255);unique;not null"`
-	Password   string         `json:"password" gorm:"type:text;not null"`
-	Role       utils.UserRole `json:"role" gorm:"type:varchar(30);default:'barber';not null"`
-	BusinessID *uuid.UUID     `json:"businessId" gorm:"type:uuid;"` //only when registering barbers
+	Name              string         `json:"name" gorm:"type:varchar(255);not null"`
+	Email             string         `json:"email" gorm:"type:varchar(255);unique;not null"`
+	Phone             string         `json:"phone" gorm:"type:varchar(255);unique;not null"`
+	Password          string         `json:"password" gorm:"type:text;not null"`
+	Role              utils.UserRole `json:"role" gorm:"type:varchar(30);default:'barber';not null"`
+	BusinessID        *uuid.UUID     `json:"businessId" gorm:"type:uuid;"` //only when registering barbers
+	IsEmailVerified   bool           `json:"isEmailVerified" gorm:"default:false;index"`
+	EmailVerifiedAt   *time.Time     `json:"emailVerifiedAt"`
+	PasswordChangedAt *time.Time     `json:"passwordChangedAt"`
 }
