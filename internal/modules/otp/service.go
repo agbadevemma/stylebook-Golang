@@ -25,9 +25,7 @@ func (s *Service) SendOTP(
 	email string,
 	otpType utils.OTPType,
 ) error {
-	if tx == nil {
-		tx = nil
-	}
+
 	code, err := funct.GenerateOTP()
 	if err != nil {
 		return err
@@ -50,6 +48,7 @@ func (s *Service) SendOTP(
 }
 
 func (s *Service) VerifyOTP(
+	tx *gorm.DB,
 	email, code string,
 	otpType utils.OTPType,
 ) error {
@@ -71,7 +70,7 @@ func (s *Service) VerifyOTP(
 	otp.Attempts++
 
 	if funct.HashOTP(code) != otp.CodeHash {
-		_ = s.repo.Update(otp)
+		_ = s.repo.Update(tx, otp)
 		return errors.New("invalid otp")
 	}
 
@@ -79,5 +78,5 @@ func (s *Service) VerifyOTP(
 	otp.Used = true
 	otp.VerifiedAt = &now
 
-	return s.repo.Update(otp)
+	return s.repo.Update(tx, otp)
 }

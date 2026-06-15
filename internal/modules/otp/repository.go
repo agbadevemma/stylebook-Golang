@@ -17,10 +17,11 @@ func NewRepository(db *gorm.DB) *Repository {
 }
 
 func (r *Repository) Create(tx *gorm.DB, otp *models.OTP) error {
-	if tx == nil {
-		tx = r.db
+	db := tx
+	if db == nil {
+		db = r.db
 	}
-	return tx.Create(otp).Error
+	return db.Create(otp).Error
 }
 
 func (r *Repository) FindValidOTP(
@@ -43,6 +44,10 @@ func (r *Repository) FindValidOTP(
 	return &otp, nil
 }
 
-func (r *Repository) Update(otp *models.OTP) error {
-	return r.db.Save(otp).Error
+func (r *Repository) Update(tx *gorm.DB, otp *models.OTP) error {
+	db := tx
+	if db == nil {
+		db = r.db
+	}
+	return db.Save(otp).Error
 }

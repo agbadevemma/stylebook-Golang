@@ -24,10 +24,6 @@ func (h *Handler) SendOtp(c *gin.Context) {
 		return
 	}
 
-	if req.Type != utils.OTPTypePasswordReset {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Something went wrong"))
-	}
-
 	err := h.service.SendOTP(nil, req.Email, req.Type)
 	if err != nil {
 		log.Printf("Error -->> %v", err.Error())
@@ -47,6 +43,7 @@ func (h *Handler) VerifyOTP(c *gin.Context) {
 	}
 
 	err := h.service.VerifyOTP(
+		nil,
 		req.Email,
 		req.Code,
 		req.Type,
