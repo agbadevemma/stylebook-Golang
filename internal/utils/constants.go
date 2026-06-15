@@ -51,3 +51,10 @@ const (
 	LedgerCredit LedgerType = "credit"
 	LedgerDebit  LedgerType = "debit"
 )
+
+type OTPType string
+
+const (
+	OTPTypeEmailVerification OTPType = "email_verification"
+	OTPTypePasswordReset     OTPType = "password_reset"
+)

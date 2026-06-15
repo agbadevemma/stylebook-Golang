@@ -1,6 +1,11 @@
 package funct
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/stylebookgo/agbadevemma/internal/models"
@@ -57,4 +62,17 @@ func CalculateFee(serviceAmount int64) (platformFee, netAmount, totalAmount int6
 	total := serviceAmount + fee
 
 	return fee, serviceAmount, total
+}
+
+func GenerateOTP() (string, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(900000))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%06d", n.Int64()+100000), nil
+}
+
+func HashOTP(code string) string {
+	sum := sha256.Sum256([]byte(code))
+	return hex.EncodeToString(sum[:])
 }
