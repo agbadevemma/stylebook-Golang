@@ -7,6 +7,7 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
+	"github.com/stylebookgo/agbadevemma/internal/modules/otp"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -16,10 +17,11 @@ type Service struct {
 
 	businessWriter     business.BusinessWriter
 	businessHourWriter businesshour.BusinessHourWriter
+	otpWriter          otp.OtpWriter
 }
 
-func NewService(repo *Repository, bus business.BusinessWriter, busHour businesshour.BusinessHourWriter) *Service {
-	return &Service{repo: repo, businessWriter: bus, businessHourWriter: busHour}
+func NewService(repo *Repository, bus business.BusinessWriter, busHour businesshour.BusinessHourWriter, otpWriter otp.OtpWriter) *Service {
+	return &Service{repo: repo, businessWriter: bus, businessHourWriter: busHour, otpWriter: otpWriter}
 }
 
 func (s *Service) Signup(req *SignupRequest) error {
@@ -151,7 +153,10 @@ func (s *Service) Signup(req *SignupRequest) error {
 			}
 		}
 	}
-
+	if err := s.otpWriter.SendOTP(tx, req.Email, utils.OTPTypeEmailVerification); err == nil {
+		tx.Rollback()
+		return err
+	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err
