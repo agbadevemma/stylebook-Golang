@@ -18,6 +18,7 @@ func Migrate(db *Database) {
 		&models.BookingService{},
 		&models.Ledger{},
 		&models.Withdrawal{},
+		&models.OTP{},
 	)
 
 	if err != nil {

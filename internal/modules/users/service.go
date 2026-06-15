@@ -153,7 +153,7 @@ func (s *Service) Signup(req *SignupRequest) error {
 			}
 		}
 	}
-	if err := s.otpWriter.SendOTP(tx, req.Email, utils.OTPTypeEmailVerification); err == nil {
+	if err := s.otpWriter.SendOTP(tx, req.Email, utils.OTPTypeEmailVerification); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -165,10 +165,64 @@ func (s *Service) Signup(req *SignupRequest) error {
 	return nil
 }
 
+func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
+	tx := s.repo.db.Begin()
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	user, err := s.repo.GetUserbyEmail(req.Email)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("user not found")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		tx.Rollback()
+		return errors.New("Create New Password")
+	}
+	if len(req.Password) < 8 {
+		tx.Rollback()
+		return errors.New("password too weak")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword(
+		[]byte(req.Password),
+		bcrypt.DefaultCost,
+	)
+
+	if err != nil {
+		tx.Rollback()
+		return errors.New("error occured while hashing")
+	}
+
+	if err := s.otpWriter.VerifyOTP(tx, user.Email, req.Code, utils.OTPTypePasswordReset); err != nil {
+		tx.Rollback()
+		return errors.New("error occured verifing otp")
+	}
+	user.Password = string(hashedPassword)
+	if err := s.repo.UpdateUser(tx, user); err != nil {
+		tx.Rollback()
+		return errors.New("failed to update password")
+	}
+
+	return nil
+}
+
 func (s *Service) Login(req *LoginRequest) (string, *models.Business, error) {
 	user, err := s.repo.GetUserbyEmail(req.Email)
 	if err != nil {
 		return "", nil, errors.New("invalid email or password")
+	}
+	if !user.IsEmailVerified {
+		return "", nil, errors.New("Email is not verified")
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {

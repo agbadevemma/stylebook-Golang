@@ -56,3 +56,23 @@ func (h *Handler) Login(c *gin.Context) {
 	}))
 
 }
+
+func (h *Handler) ChangePassword(c *gin.Context) {
+	var req ChangePasswordRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	err := h.service.ChangePassword(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse(
+		"Password Changed successfully",
+		nil,
+	))
+}
