@@ -34,26 +34,3 @@ func (h *Handler) SendOtp(c *gin.Context) {
 	c.JSON(http.StatusOK, utils.SuccessResponse("OTP sent successfully", nil))
 }
 
-func (h *Handler) VerifyOTP(c *gin.Context) {
-	var req VerifyOTPRequest
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ValidationError(c, err)
-		return
-	}
-
-	err := h.service.VerifyOTP(
-		nil,
-		req.Email,
-		req.Code,
-		req.Type,
-	)
-
-	if err != nil {
-		log.Printf("Error -->> %v", err.Error())
-		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("An error  occured"))
-		return
-	}
-
-	c.JSON(http.StatusOK, utils.SuccessResponse("OTP verified successfully", nil))
-}

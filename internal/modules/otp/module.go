@@ -19,7 +19,7 @@ func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	otp := api.Group("/otp")
 	{
 		otp.POST("/send", m.handler.SendOtp)
-		otp.POST("/verify", m.handler.VerifyOTP)
+	
 	}
 
 }
