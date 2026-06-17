@@ -26,6 +26,7 @@ func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	{
 		user.POST("/signup", m.handler.Signup)
 		user.POST("/login", m.handler.Login)
+		user.POST("/verify", m.handler.VerifyOTP)
 		user.POST("/changepassword", m.handler.ChangePassword)
 	}
 

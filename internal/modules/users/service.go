@@ -2,6 +2,7 @@ package users
 
 import (
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
@@ -165,6 +166,46 @@ func (s *Service) Signup(req *SignupRequest) error {
 	return nil
 }
 
+func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
+	tx := s.repo.db.Begin()
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	err := s.otpWriter.VerifyOTP(tx, req.Email, req.Code, req.Type)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	user, err := s.repo.GetUserbyEmail(req.Email)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	user.IsEmailVerified = true
+	user.EmailVerifiedAt = &now
+	
+	if err := s.repo.UpdateUser(tx, user); err != nil {
+		tx.Rollback()
+		return errors.New("failed to update password")
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
+
+}
+
 func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
 	tx := s.repo.db.Begin()
 
@@ -205,12 +246,18 @@ func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
 
 	if err := s.otpWriter.VerifyOTP(tx, user.Email, req.Code, utils.OTPTypePasswordReset); err != nil {
 		tx.Rollback()
-		return errors.New("error occured verifing otp")
+		return errors.New(err.Error())
 	}
 	user.Password = string(hashedPassword)
+	now := time.Now()
+	user.PasswordChangedAt = &now
 	if err := s.repo.UpdateUser(tx, user); err != nil {
 		tx.Rollback()
 		return errors.New("failed to update password")
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
 	}
 
 	return nil
