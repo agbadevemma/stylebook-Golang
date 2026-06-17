@@ -192,7 +192,7 @@ func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
 	now := time.Now()
 	user.IsEmailVerified = true
 	user.EmailVerifiedAt = &now
-	
+
 	if err := s.repo.UpdateUser(tx, user); err != nil {
 		tx.Rollback()
 		return errors.New("failed to update password")
@@ -225,7 +225,7 @@ func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
 		tx.Rollback()
 		return errors.New("user not found")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err == nil {
 		tx.Rollback()
 		return errors.New("Create New Password")
 	}
