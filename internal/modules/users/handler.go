@@ -24,7 +24,7 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
-	if req.Role != utils.Admin && req.Role != utils.Barber {
+	if req.Role != utils.Business && req.Role != utils.Barber {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid role"))
 		return
 	}

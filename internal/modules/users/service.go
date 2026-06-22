@@ -84,7 +84,7 @@ func (s *Service) Signup(req *SignupRequest) error {
 		return err
 	}
 
-	if req.Role == utils.Admin {
+	if req.Role == utils.Business {
 		business := &models.Business{
 			Name:    req.BusinessName,
 			OwnerID: user.ID,

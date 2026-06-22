@@ -23,7 +23,7 @@ func NewModule(db *gorm.DB) *Module {
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	ledger := api.Group("/ledger")
 	{
-		ledger.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Admin))
+		ledger.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business))
 
 		ledger.GET("/balance", m.handler.GetBusinessBalance)
 

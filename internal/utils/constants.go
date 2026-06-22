@@ -32,6 +32,7 @@ type UserRole string
 
 const (
 	Admin  UserRole = "admin"
+	Business  UserRole = "business"
 	Barber UserRole = "barber"
 )
 
