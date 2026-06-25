@@ -14,7 +14,7 @@ type UpdateServiceRequest struct {
 	Description string `json:"description"`
 	Price       int64  `json:"price"`
 	Duration    int    `json:"duration"`
-	IsActive    bool   `json:"is_active"`
+	IsActive    bool   `json:"isActive"`
 }
 
 type DeleteServiceRequest struct {
