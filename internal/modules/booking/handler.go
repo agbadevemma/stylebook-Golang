@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 )
 
@@ -36,4 +37,42 @@ func (h *Handler) CreateBooking(c *gin.Context) {
 
 	c.JSON(http.StatusOK, utils.SuccessResponse("Booking created successfully", res))
 
+}
+
+func (h *Handler) ListBusinessBookings(c *gin.Context) {
+	businessIDValue, exists := c.Get("businessId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("business id not found"))
+		return
+	}
+
+	businessID, ok := businessIDValue.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("invalid business id"))
+		return
+	}
+
+	bookings, err := h.service.ListBusinessBookings(businessID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch bookings"))
+		return
+	}
+
+	res := make([]BusinessBookingResponse, 0, len(bookings))
+	for _, booking := range bookings {
+		res = append(res, BusinessBookingResponse{
+			ID:            booking.ID,
+			CustomerName:  booking.CustomerName,
+			CustomerPhone: booking.CustomerPhone,
+			CustomerEmail: booking.CustomerEmail,
+			TotalDuration: booking.TotalDuration,
+			StartTime:     booking.StartTime,
+			EndTime:       booking.EndTime,
+			BookingStatus: string(booking.BookingStatus),
+			PaymentStatus: string(booking.PaymentStatus),
+			CreatedAt:     booking.CreatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("Bookings retrieved successfully", res))
 }

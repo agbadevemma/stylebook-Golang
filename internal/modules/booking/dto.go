@@ -19,3 +19,16 @@ type BookingResponse struct {
 	BookingID  uuid.UUID `json:"bookingId"`
 	PaymentURL string    `json:"paymentUrl"`
 }
+
+type BusinessBookingResponse struct {
+	ID            uuid.UUID `json:"id"`
+	CustomerName  string    `json:"customerName"`
+	CustomerPhone string    `json:"customerPhone"`
+	CustomerEmail string    `json:"customerEmail"`
+	TotalDuration int       `json:"totalDuration"`
+	StartTime     time.Time `json:"startTime"`
+	EndTime       time.Time `json:"endTime"`
+	BookingStatus string    `json:"bookingStatus"`
+	PaymentStatus string    `json:"paymentStatus"`
+	CreatedAt     time.Time `json:"createdAt"`
+}

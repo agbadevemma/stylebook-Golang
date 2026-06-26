@@ -50,3 +50,12 @@ func (r *Repository) GetBookings(
 
 	return bookings, err
 }
+
+func (r *Repository) ListBusinessBookings(businessID uuid.UUID) ([]models.Booking, error) {
+	var bookings []models.Booking
+	err := r.db.
+		Where("business_id = ?", businessID).
+		Order("start_time DESC").
+		Find(&bookings).Error
+	return bookings, err
+}

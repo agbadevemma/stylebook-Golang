@@ -229,3 +229,12 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 		PaymentURL: paymentURL,
 	}, tx.Commit().Error
 }
+
+func (s *Service) ListBusinessBookings(businessID uuid.UUID) ([]models.Booking, error) {
+	_, err := s.businessWriter.GetBusinessByID(businessID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.ListBusinessBookings(businessID)
+}
