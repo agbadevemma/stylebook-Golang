@@ -230,6 +230,25 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	}, tx.Commit().Error
 }
 
+func (s *Service) GetBusinessBookingStats(businessID uuid.UUID) (BookingStatsResponse, error) {
+	_, err := s.businessWriter.GetBusinessByID(businessID)
+	if err != nil {
+		return BookingStatsResponse{}, err
+	}
+
+	total, today, pending, clients, err := s.repo.GetBusinessBookingStats(businessID)
+	if err != nil {
+		return BookingStatsResponse{}, err
+	}
+
+	return BookingStatsResponse{
+		TotalBookings:   total,
+		TodayBookings:   today,
+		PendingBookings: pending,
+		TotalClients:    clients,
+	}, nil
+}
+
 func (s *Service) ListBusinessBookings(businessID uuid.UUID, params ListBookingsParams) ([]models.Booking, int64, error) {
 	_, err := s.businessWriter.GetBusinessByID(businessID)
 	if err != nil {

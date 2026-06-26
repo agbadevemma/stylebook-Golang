@@ -40,6 +40,28 @@ func (h *Handler) CreateBooking(c *gin.Context) {
 
 }
 
+func (h *Handler) GetBusinessStats(c *gin.Context) {
+	businessIDValue, exists := c.Get("businessId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("business id not found"))
+		return
+	}
+
+	businessID, ok := businessIDValue.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("invalid business id"))
+		return
+	}
+
+	stats, err := h.service.GetBusinessBookingStats(businessID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch stats"))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("Stats retrieved successfully", stats))
+}
+
 func (h *Handler) ListBusinessBookings(c *gin.Context) {
 	businessIDValue, exists := c.Get("businessId")
 	if !exists {

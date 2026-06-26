@@ -51,6 +51,37 @@ func (r *Repository) GetBookings(
 	return bookings, err
 }
 
+func (r *Repository) GetBusinessBookingStats(businessID uuid.UUID) (total int64, today int64, pending int64, clients int64, err error) {
+	if err = r.db.Model(&models.Booking{}).
+		Where("business_id = ?", businessID).
+		Count(&total).Error; err != nil {
+		return
+	}
+
+	todayStart := time.Now().UTC().Truncate(24 * time.Hour)
+	todayEnd := todayStart.Add(24 * time.Hour)
+	if err = r.db.Model(&models.Booking{}).
+		Where("business_id = ? AND start_time >= ? AND start_time < ?", businessID, todayStart, todayEnd).
+		Count(&today).Error; err != nil {
+		return
+	}
+
+	if err = r.db.Model(&models.Booking{}).
+		Where("business_id = ? AND booking_status = ?", businessID, "pending").
+		Count(&pending).Error; err != nil {
+		return
+	}
+
+	if err = r.db.Model(&models.Booking{}).
+		Where("business_id = ?", businessID).
+		Distinct("customer_email").
+		Count(&clients).Error; err != nil {
+		return
+	}
+
+	return
+}
+
 func (r *Repository) ListBusinessBookings(businessID uuid.UUID, params ListBookingsParams) ([]models.Booking, int64, error) {
 	var bookings []models.Booking
 	var total int64

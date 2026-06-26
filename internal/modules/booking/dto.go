@@ -40,6 +40,13 @@ type PaginatedBookingsResponse struct {
 	PageSize int                       `json:"pageSize"`
 }
 
+type BookingStatsResponse struct {
+	TotalBookings   int64 `json:"totalBookings"`
+	TodayBookings   int64 `json:"todayBookings"`
+	PendingBookings int64 `json:"pendingBookings"`
+	TotalClients    int64 `json:"totalClients"`
+}
+
 type ListBookingsParams struct {
 	Page     int
 	PageSize int
