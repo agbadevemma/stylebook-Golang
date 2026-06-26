@@ -32,3 +32,16 @@ type BusinessBookingResponse struct {
 	PaymentStatus string    `json:"paymentStatus"`
 	CreatedAt     time.Time `json:"createdAt"`
 }
+
+type PaginatedBookingsResponse struct {
+	Data     []BusinessBookingResponse `json:"data"`
+	Total    int64                     `json:"total"`
+	Page     int                       `json:"page"`
+	PageSize int                       `json:"pageSize"`
+}
+
+type ListBookingsParams struct {
+	Page     int
+	PageSize int
+	Search   string
+}

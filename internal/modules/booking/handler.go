@@ -3,6 +3,7 @@ package booking
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -52,7 +53,24 @@ func (h *Handler) ListBusinessBookings(c *gin.Context) {
 		return
 	}
 
-	bookings, err := h.service.ListBusinessBookings(businessID)
+	page := 1
+	pageSize := 10
+	search := c.Query("search")
+
+	if p := c.Query("page"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+			page = v
+		}
+	}
+	if ps := c.Query("pageSize"); ps != "" {
+		if v, err := strconv.Atoi(ps); err == nil && v > 0 && v <= 100 {
+			pageSize = v
+		}
+	}
+
+	params := ListBookingsParams{Page: page, PageSize: pageSize, Search: search}
+
+	bookings, total, err := h.service.ListBusinessBookings(businessID, params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch bookings"))
 		return
@@ -74,5 +92,10 @@ func (h *Handler) ListBusinessBookings(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("Bookings retrieved successfully", res))
+	c.JSON(http.StatusOK, utils.SuccessResponse("Bookings retrieved successfully", PaginatedBookingsResponse{
+		Data:     res,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}))
 }

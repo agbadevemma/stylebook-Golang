@@ -230,11 +230,11 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	}, tx.Commit().Error
 }
 
-func (s *Service) ListBusinessBookings(businessID uuid.UUID) ([]models.Booking, error) {
+func (s *Service) ListBusinessBookings(businessID uuid.UUID, params ListBookingsParams) ([]models.Booking, int64, error) {
 	_, err := s.businessWriter.GetBusinessByID(businessID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return s.repo.ListBusinessBookings(businessID)
+	return s.repo.ListBusinessBookings(businessID, params)
 }

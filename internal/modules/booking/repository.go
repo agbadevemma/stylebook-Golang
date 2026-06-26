@@ -51,11 +51,30 @@ func (r *Repository) GetBookings(
 	return bookings, err
 }
 
-func (r *Repository) ListBusinessBookings(businessID uuid.UUID) ([]models.Booking, error) {
+func (r *Repository) ListBusinessBookings(businessID uuid.UUID, params ListBookingsParams) ([]models.Booking, int64, error) {
 	var bookings []models.Booking
-	err := r.db.
-		Where("business_id = ?", businessID).
+	var total int64
+
+	query := r.db.Model(&models.Booking{}).Where("business_id = ?", businessID)
+
+	if params.Search != "" {
+		like := "%" + params.Search + "%"
+		query = query.Where(
+			"customer_name ILIKE ? OR customer_email ILIKE ? OR customer_phone ILIKE ?",
+			like, like, like,
+		)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (params.Page - 1) * params.PageSize
+	err := query.
 		Order("start_time DESC").
+		Limit(params.PageSize).
+		Offset(offset).
 		Find(&bookings).Error
-	return bookings, err
+
+	return bookings, total, err
 }
