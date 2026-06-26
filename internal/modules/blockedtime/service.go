@@ -36,6 +36,24 @@ func (s *Service) CreateBlockedTime(
 	start := req.StartTime.In(loc)
 	end := req.EndTime.In(loc)
 
+	if end.Before(start) {
+		return errors.New("end time must be after start time")
+	}
+
+	exists, err := s.repo.HasOverlappingBlockedTime(
+		businessID,
+		start.UTC(),
+		end.UTC(),
+	)
+
+	if err != nil {
+		return err
+	}
+	
+	if exists {
+		return errors.New("overlapping blocked time exists")
+	}
+
 	blockedTime := &models.BlockedTime{
 		BusinessID: businessID,
 		StartTime:  start.UTC(),
