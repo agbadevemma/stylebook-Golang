@@ -22,14 +22,15 @@ func (h *Handler) CreateBlockedTime(c *gin.Context) {
 	var req CreateBlockedTimeRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("An error occured"))
+		utils.ValidationError(c, err)
 		return
 	}
+		
 
 	businessID := c.MustGet("businessId").(uuid.UUID)
 
 	if err := h.service.CreateBlockedTime(&req, businessID); err != nil {
-		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("An error occured"))
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse(err.Error()))
 		return
 	}
 
@@ -55,7 +56,7 @@ func (h *Handler) ListBlockedTime(c *gin.Context) {
 			return
 
 		default:
-			c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch "))
+			c.JSON(http.StatusInternalServerError, utils.ErrorResponse(err.Error()))
 			return
 		}
 
