@@ -7,6 +7,7 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/modules/booking"
 	"github.com/stylebookgo/agbadevemma/internal/modules/bookingservice"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
+	"github.com/stylebookgo/agbadevemma/internal/modules/businesspublic"
 	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
 	"github.com/stylebookgo/agbadevemma/internal/modules/ledger"
 	"github.com/stylebookgo/agbadevemma/internal/modules/notification/email"
@@ -40,6 +41,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	bookingServiceRepo := bookingservice.NewRepository(db)
 
 	users.NewModule(db, businessRepo, businessHourRepo, otpService).ModuleRoutes(api)
+	businesspublic.NewModule(businessRepo).ModuleRoutes(api)
 	service.NewModule(db, businessRepo).ModuleRoutes(api)
 	payment.NewModule(paymentService).ModuleRoutes(api)
 	withdrawal.NewModule(db, ledgerRepo, businessRepo).ModuleRoutes(api)
