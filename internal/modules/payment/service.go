@@ -170,6 +170,32 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 		return nil
 	}
 
+	exists, err := s.ledgerWriter.LedgerExistsByReference(
+		tx,
+		payment.Reference,
+		utils.LedgerCredit,
+	)
+	if !exists {
+		ledger := &models.Ledger{
+			BusinessID: payment.BusinessID,
+			Amount:     payment.NetAmount,
+			Type:       utils.LedgerCredit,
+			Reference:  payment.Reference,
+			Reason:     "Payment successful",
+		}
+
+		if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
+			tx.Rollback()
+			return err
+		}
+
+	}
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	now := time.Now()
 
 	payment.Status = utils.PaymentSuccess
@@ -210,6 +236,7 @@ func (s *Service) handlePaymentFailed(tx *gorm.DB, payment *models.Payment) erro
 
 	return tx.Commit().Error
 }
+
 func (s *Service) handlePaymentAbandoned(tx *gorm.DB, payment *models.Payment) error {
 
 	if payment.Status == utils.PaymentSuccess {
@@ -241,7 +268,40 @@ func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) erro
 		return err
 	}
 
-	// optional: reverse ledger entry
+	if err := s.repo.UpdateBookingStatus(
+		tx,
+		payment.BookingID,
+		utils.BookingCancelled,
+		utils.PaymentRefunded,
+	); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	exists, err := s.ledgerWriter.LedgerExistsByReference(
+		tx,
+		payment.Reference+"-refund",
+		utils.LedgerDebit,
+	)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	if !exists {
+		ledger := &models.Ledger{
+			BusinessID: payment.BusinessID,
+			Amount:     payment.NetAmount,
+			Type:       utils.LedgerDebit,
+			Reference:  payment.Reference + "-refund",
+			Reason:     "Payment refunded",
+		}
+
+		if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
+			tx.Rollback()
+			return err
+		}
+
+	}
 	return tx.Commit().Error
 }
 
