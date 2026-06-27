@@ -37,6 +37,10 @@ func (s *Service) VerifySignature(payload []byte, signature string) bool {
 	return expected == signature
 }
 
+func (s *Service) GetBusinessWithdrawals(businessID uuid.UUID) ([]models.Withdrawal, error) {
+	return s.repo.GetBusinessWithdrawals(businessID)
+}
+
 func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64) (*TransferResponse, error) {
 	tx := s.repo.db.Begin()
 	if tx.Error != nil {
