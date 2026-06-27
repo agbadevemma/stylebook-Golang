@@ -247,11 +247,10 @@ func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) erro
 
 func (s *Service) GetBusinessTransactions(
 	businessID uuid.UUID,
-	limit int,
-	offset int,
+	params ListTransactionsParams,
 ) ([]models.Payment, int64, error) {
 
-	return s.repo.GetPaymentsByBusiness(businessID, limit, offset)
+	return s.repo.GetPaymentsByBusiness(businessID, params)
 }
 
 func (s *Service) ResolveBankAccount(accountNumber, bankCode string) (*BankResolveResponse, error) {

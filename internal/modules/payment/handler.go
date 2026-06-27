@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -73,28 +74,63 @@ func (h *Handler) GetBusinessTransactions(c *gin.Context) {
 		return
 	}
 
-	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid limit"))
-		return
+	page := 1
+	pageSize := 10
+	search := c.Query("search")
+
+	if p := c.Query("page"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+			page = v
+		}
 	}
-	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid offset"))
-		return
+	if ps := c.Query("pageSize"); ps != "" {
+		if v, err := strconv.Atoi(ps); err == nil && v > 0 && v <= 100 {
+			pageSize = v
+		}
 	}
 
-	data, total, err := h.service.GetBusinessTransactions(businessID, limit, offset)
+	params := ListTransactionsParams{
+		Page:     page,
+		PageSize: pageSize,
+		Search:   search,
+	}
+
+	data, total, err := h.service.GetBusinessTransactions(businessID, params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch transactions"))
 		return
 	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("Fetched transaction successfully", TransactionResponse{Result: data, Pagination: utils.Pagination{
-		Total:  total,
-		Limit:  limit,
-		Offset: offset,
-	}}))
+	result := make([]BusinessTransactionResponse, 0, len(data))
+	for _, payment := range data {
+		var paidAt *string
+		if payment.PaidAt != nil {
+			formatted := payment.PaidAt.Format(time.RFC3339)
+			paidAt = &formatted
+		}
+
+		result = append(result, BusinessTransactionResponse{
+			ID:            payment.ID.String(),
+			Reference:     payment.Reference,
+			CustomerName:  payment.Name,
+			CustomerEmail: payment.Email,
+			Amount:        payment.Amount,
+			ServiceAmount: payment.ServiceAmount,
+			PlatformFee:   payment.PlatformFee,
+			NetAmount:     payment.NetAmount,
+			Currency:      payment.Currency,
+			Status:        string(payment.Status),
+			PaidAt:        paidAt,
+			CreatedAt:     payment.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("Fetched transaction successfully", PaginatedTransactionsResponse{
+		Data:     result,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}))
 }
 
 func (h *Handler) ResolveBankAccount(c *gin.Context) {

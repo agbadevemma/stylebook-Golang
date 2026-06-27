@@ -12,6 +12,34 @@ type TransactionResponse struct {
 	Pagination utils.Pagination `json:"pagination"`
 }
 
+type BusinessTransactionResponse struct {
+	ID            string  `json:"id"`
+	Reference     string  `json:"reference"`
+	CustomerName  string  `json:"customerName"`
+	CustomerEmail string  `json:"customerEmail"`
+	Amount        int64   `json:"amount"`
+	ServiceAmount int64   `json:"serviceAmount"`
+	PlatformFee   int64   `json:"platformFee"`
+	NetAmount     int64   `json:"netAmount"`
+	Currency      string  `json:"currency"`
+	Status        string  `json:"status"`
+	PaidAt        *string `json:"paidAt"`
+	CreatedAt     string  `json:"createdAt"`
+}
+
+type PaginatedTransactionsResponse struct {
+	Data     []BusinessTransactionResponse `json:"data"`
+	Total    int64                         `json:"total"`
+	Page     int                           `json:"page"`
+	PageSize int                           `json:"pageSize"`
+}
+
+type ListTransactionsParams struct {
+	Page     int
+	PageSize int
+	Search   string
+}
+
 type InitRequest struct {
 	Email     string `json:"email"`
 	Amount    int64  `json:"amount"`
