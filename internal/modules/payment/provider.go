@@ -154,5 +154,33 @@ func (p *Provider) CreateTransferRecipient(
 	return &result, nil
 }
 
+func (p *Provider) GetBanks() ([]Bank, error) {
+	url := fmt.Sprintf("%s/bank", os.Getenv("PAYSTACK_BASE_URL"))
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+os.Getenv("PAYSTACK_SECRET_KEY"))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var result BanksResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	if !result.Status {
+		return nil, fmt.Errorf("paystack error: %s", result.Message)
+	}
+
+	return result.Data, nil
+}
 
 

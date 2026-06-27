@@ -88,3 +88,22 @@ type CreateTransferRecipientRequest struct {
 	AccountNumber string `json:"accountNumber" binding:"required"`
 	BankCode      string `json:"bankCode" binding:"required"`
 }
+
+type Bank struct {
+	ID       int    `json:"id"`
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+	Longname string `json:"longname"`
+	Ussd     string `json:"ussd"`
+	Active   bool   `json:"active"`
+	Country  string `json:"country"`
+	Currency string `json:"currency"`
+	Type     string `json:"type"`
+	Slug     string `json:"slug"`
+}
+
+type BanksResponse struct {
+	Status  bool   `json:"status"`
+	Message string `json:"message"`
+	Data    []Bank `json:"data"`
+}

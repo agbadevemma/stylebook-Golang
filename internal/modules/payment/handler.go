@@ -189,3 +189,13 @@ func (h *Handler) CreateTransferRecipient(c *gin.Context) {
 		"recipientCode": res.Data.RecipientCode,
 	}))
 }
+
+func (h *Handler) GetBanks(c *gin.Context) {
+	banks, err := h.service.GetBanks()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch banks: "+err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("banks fetched successfully", banks))
+}
