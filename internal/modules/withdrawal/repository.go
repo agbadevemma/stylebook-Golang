@@ -1,6 +1,7 @@
 package withdrawal
 
 import (
+	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"gorm.io/gorm"
 )
@@ -33,4 +34,19 @@ func (r *Repository) GetWithdrawalByReference(transferReference string) (*models
 	}
 
 	return &withdrawal, nil
+}
+
+func (r *Repository) GetBusinessWithdrawals(businessID uuid.UUID) ([]models.Withdrawal, error) {
+	var withdrawals []models.Withdrawal
+
+	err := r.db.
+		Where("business_id = ?", businessID).
+		Order("created_at DESC").
+		Find(&withdrawals).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return withdrawals, nil
 }

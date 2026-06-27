@@ -1,5 +1,7 @@
 package withdrawal
 
+import "github.com/stylebookgo/agbadevemma/internal/utils"
+
 type TransferRequest struct {
 	Source    string `json:"source"`
 	Amount    int64  `json:"amount"`
@@ -17,4 +19,10 @@ type TransferResponse struct {
 	} `json:"data"`
 }
 
-
+type WithdrawalHistoryResponse struct {
+	ID        string                 `json:"id"`
+	Amount    int64                  `json:"amount"`
+	Status    utils.WithdrawalStatus `json:"status"`
+	CreatedAt string                 `json:"createdAt"`
+	Reference string                 `json:"reference"`
+}

@@ -41,6 +41,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	bookingServiceRepo := bookingservice.NewRepository(db)
 
 	users.NewModule(db, businessRepo, businessHourRepo, otpService).ModuleRoutes(api)
+	business.NewModule(db).ModuleRoutes(api)
 	businesspublic.NewModule(businessRepo).ModuleRoutes(api)
 	service.NewModule(db, businessRepo).ModuleRoutes(api)
 	payment.NewModule(paymentService).ModuleRoutes(api)

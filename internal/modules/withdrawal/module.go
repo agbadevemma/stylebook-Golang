@@ -29,7 +29,11 @@ func NewModule(db *gorm.DB, ledgerWriter ledger.LedgerWriter, businesWriter busi
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	withdrawal := api.Group("/withdrawal")
 	{
-		withdrawal.GET("/create", middleware.JWTAuthMiddleware(),
+		withdrawal.GET("/history", middleware.JWTAuthMiddleware(),
+			middleware.RoleMiddleware(utils.Business), m.handler.GetWithdrawalHistory)
+		withdrawal.POST("", middleware.JWTAuthMiddleware(),
+			middleware.RoleMiddleware(utils.Business), m.handler.CreateWithdrawal)
+		withdrawal.POST("/create", middleware.JWTAuthMiddleware(),
 			middleware.RoleMiddleware(utils.Business), m.handler.CreateWithdrawal)
 			
 

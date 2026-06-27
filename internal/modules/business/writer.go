@@ -10,6 +10,11 @@ type BusinessWriter interface {
 	GetBusinessByID(id uuid.UUID) (*models.Business, error)
 	GetBusinessByUserID(id uuid.UUID) (*models.Business, error)
 	CreateBusiness(tx *gorm.DB, business *models.Business) error
+	UpdateBusinessDetails(
+		businessID uuid.UUID,
+		name string,
+		timezone string,
+	) error
 	UpdateBusinessBankDetails(
 		businessID uuid.UUID,
 		accountNumber string,
