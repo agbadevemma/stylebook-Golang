@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
@@ -155,6 +156,7 @@ func (s *Service) HandleTransferEvent(event utils.PaystackWebhookEvent) error {
 		return err
 	}
 	previousStatus := withdrawal.Status
+	idemKey := withdrawal.TransferReference + ":" + event.Event
 
 	switch event.Event {
 
@@ -166,7 +168,7 @@ func (s *Service) HandleTransferEvent(event utils.PaystackWebhookEvent) error {
 
 		exists, err := s.ledgerWriter.LedgerExistsByReference(
 			tx,
-			withdrawal.TransferReference,
+			idemKey,
 			utils.LedgerDebit,
 		)
 		if err != nil {
@@ -177,11 +179,13 @@ func (s *Service) HandleTransferEvent(event utils.PaystackWebhookEvent) error {
 		if !exists {
 
 			ledger := &models.Ledger{
+				ID:         uuid.New(),
 				BusinessID: withdrawal.BusinessID,
 				Amount:     withdrawal.Amount,
 				Type:       utils.LedgerDebit,
-				Reference:  withdrawal.TransferReference,
+				Reference:  idemKey,
 				Reason:     "Withdrawal successful",
+				CreatedAt:  time.Now(),
 			}
 
 			if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
@@ -210,7 +214,7 @@ func (s *Service) HandleTransferEvent(event utils.PaystackWebhookEvent) error {
 
 		exists, err := s.ledgerWriter.LedgerExistsByReference(
 			tx,
-			withdrawal.TransferReference,
+			idemKey,
 			utils.LedgerCredit,
 		)
 
@@ -221,11 +225,13 @@ func (s *Service) HandleTransferEvent(event utils.PaystackWebhookEvent) error {
 
 		if previousStatus == utils.WithdrawalSuccess && !exists {
 			ledger := &models.Ledger{
+				ID:         uuid.New(),
 				BusinessID: withdrawal.BusinessID,
 				Amount:     withdrawal.Amount,
 				Type:       utils.LedgerCredit,
-				Reference:  withdrawal.TransferReference,
+				Reference:  idemKey,
 				Reason:     "Withdrawal reversed",
+				CreatedAt:  time.Now(),
 			}
 
 			if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {

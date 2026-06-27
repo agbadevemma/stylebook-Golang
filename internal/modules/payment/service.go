@@ -177,11 +177,13 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 	)
 	if !exists {
 		ledger := &models.Ledger{
+			ID: uuid.New(),
 			BusinessID: payment.BusinessID,
 			Amount:     payment.NetAmount,
 			Type:       utils.LedgerCredit,
 			Reference:  payment.Reference,
 			Reason:     "Payment successful",
+			CreatedAt:  time.Now(),
 		}
 
 		if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
@@ -289,11 +291,13 @@ func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) erro
 	}
 	if !exists {
 		ledger := &models.Ledger{
+			ID:         uuid.New(),
 			BusinessID: payment.BusinessID,
 			Amount:     payment.NetAmount,
 			Type:       utils.LedgerDebit,
 			Reference:  payment.Reference + "-refund",
 			Reason:     "Payment refunded",
+			CreatedAt:  time.Now(),
 		}
 
 		if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
