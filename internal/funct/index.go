@@ -51,12 +51,12 @@ func CalculateFee(serviceAmount int64) (platformFee, netAmount, totalAmount int6
 
 	fee := int64(float64(serviceAmount) * 0.10)
 
-	if fee < 10000 {
-		fee = 10000
+	if fee < 100000 {
+		fee = 100000
 	}
 
-	if fee > 50000 {
-		fee = 50000
+	if fee > 500000 {
+		fee = 500000
 	}
 
 	total := serviceAmount + fee
