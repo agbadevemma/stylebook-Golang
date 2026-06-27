@@ -351,3 +351,8 @@ func (s *Service) CreateTransferRecipient(
 
 	return res, nil
 }
+
+func (s *Service) GetBanks() ([]Bank, error) {
+	return s.provider.GetBanks()
+}
+
