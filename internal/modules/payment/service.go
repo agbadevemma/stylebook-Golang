@@ -51,7 +51,7 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 	}
 
 	platformFee, netAmount, totalAmount := funct.CalculateFee(serviceAmount)
-	// log.Printf("platformFee: %v, netAmount: %v, totalAmount: %v", platformFee, netAmount, totalAmount)
+	log.Printf("platformFee: %v, netAmount: %v, totalAmount: %v", platformFee, netAmount, totalAmount)
 
 	ref := uuid.NewString()
 
