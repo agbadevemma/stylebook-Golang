@@ -5,8 +5,6 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 )
 
-
-
 type TransactionResponse struct {
 	Result     []models.Payment `json:"result"`
 	Pagination utils.Pagination `json:"pagination"`
@@ -83,7 +81,7 @@ type CreateRecipientResponse struct {
 }
 
 type CreateTransferRecipientRequest struct {
-	Name          string `json:"name" binding:"required"`
+	AccountName   string `json:"accountName" binding:"required"`
 	BankName      string `json:"bankName" binding:"required"`
 	AccountNumber string `json:"accountNumber" binding:"required"`
 	BankCode      string `json:"bankCode" binding:"required"`

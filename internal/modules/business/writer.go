@@ -17,6 +17,7 @@ type BusinessWriter interface {
 	) error
 	UpdateBusinessBankDetails(
 		businessID uuid.UUID,
+		accountName string,
 		accountNumber string,
 		transferRecipient string,
 		bankName string,

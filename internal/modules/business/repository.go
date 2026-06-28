@@ -53,6 +53,7 @@ func (r *Repository) UpdateBusinessDetails(
 
 func (r *Repository) UpdateBusinessBankDetails(
 	businessID uuid.UUID,
+	accountName string,
 	accountNumber string,
 	transferRecipient string,
 	bankName string,
@@ -61,6 +62,7 @@ func (r *Repository) UpdateBusinessBankDetails(
 	return r.db.Model(&models.Business{}).
 		Where("id = ?", businessID).
 		Updates(map[string]any{
+			"account_name":       accountName,
 			"account_number":     accountNumber,
 			"bank_name":          bankName,
 			"transfer_recipient": transferRecipient,

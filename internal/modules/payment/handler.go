@@ -174,7 +174,7 @@ func (h *Handler) CreateTransferRecipient(c *gin.Context) {
 	}
 
 	res, err := h.service.CreateTransferRecipient(
-		req.Name,
+		req.AccountName,
 		req.AccountNumber,
 		req.BankName,
 		req.BankCode,

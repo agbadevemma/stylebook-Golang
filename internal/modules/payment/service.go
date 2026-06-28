@@ -322,7 +322,7 @@ func (s *Service) ResolveBankAccount(accountNumber, bankCode string) (*BankResol
 }
 
 func (s *Service) CreateTransferRecipient(
-	name,
+	accountName,
 	accountNumber,
 	bankName,
 	bankCode string,
@@ -336,7 +336,7 @@ func (s *Service) CreateTransferRecipient(
 	}
 
 	res, err := s.provider.CreateTransferRecipient(
-		name,
+		accountName,
 		accountNumber,
 		bankCode,
 	)
@@ -344,7 +344,7 @@ func (s *Service) CreateTransferRecipient(
 		return nil, err
 	}
 
-	err = s.business.UpdateBusinessBankDetails(businessID, accountNumber, res.Data.RecipientCode, bankName, bankCode)
+	err = s.business.UpdateBusinessBankDetails( businessID,accountName, accountNumber, res.Data.RecipientCode, bankName, bankCode)
 	if err != nil {
 		return nil, err
 	}
