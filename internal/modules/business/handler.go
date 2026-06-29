@@ -74,6 +74,7 @@ func toBusinessSettingsResponse(business *models.Business) BusinessSettingsRespo
 		ID:            business.ID.String(),
 		Name:          business.Name,
 		Timezone:      business.Timezone,
+		AccountName:   business.AccountName,
 		AccountNumber: business.AccountNumber,
 		BankName:      business.BankName,
 		BankCode:      business.BankCode,
