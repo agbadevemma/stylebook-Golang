@@ -36,6 +36,20 @@ func (r *Repository) GetWithdrawalByReference(transferReference string) (*models
 	return &withdrawal, nil
 }
 
+func (r *Repository) GetWithdrawalByPaystackTransferCode(transferCode string) (*models.Withdrawal, error) {
+	var withdrawal models.Withdrawal
+
+	err := r.db.
+		Where("paystack_transfer_code = ?", transferCode).
+		First(&withdrawal).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &withdrawal, nil
+}
+
 func (r *Repository) GetBusinessWithdrawals(businessID uuid.UUID) ([]models.Withdrawal, error) {
 	var withdrawals []models.Withdrawal
 
