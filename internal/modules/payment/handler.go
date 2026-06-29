@@ -134,8 +134,8 @@ func (h *Handler) GetBusinessTransactions(c *gin.Context) {
 }
 
 func (h *Handler) ResolveBankAccount(c *gin.Context) {
-	accountNumber := c.Query("account_number")
-	bankCode := c.Query("bank_code")
+	accountNumber := c.Query("accountNumber")
+	bankCode := c.Query("bankCode")
 
 	if accountNumber == "" || bankCode == "" {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("missing query params"))
