@@ -12,6 +12,6 @@ type Business struct {
 	AccountNumber     string `json:"accountNumber" gorm:"type:varchar(20);default:''"`
 	BankName          string `json:"bankName" gorm:"type:varchar(100);default:''"`
 	BankCode          string `json:"bankCode" gorm:"type:varchar(10);default:''"`
-	AccountName       string `json:"accountName" gorm:"type:varchar(9);default:''"`
+	AccountName       string `json:"accountName" gorm:"type:varchar(900);default:''"`
 	TransferRecipient string `json:"transferRecipient" gorm:"type:varchar(100);default:''"`
 }
