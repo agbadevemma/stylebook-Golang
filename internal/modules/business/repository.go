@@ -69,3 +69,9 @@ func (r *Repository) UpdateBusinessBankDetails(
 			"bank_code":          bankCode,
 		}).Error
 }
+
+func (r *Repository) UpdateWithdrawalPIN(businessID uuid.UUID, hashedPIN string) error {
+	return r.db.Model(&models.Business{}).
+		Where("id = ?", businessID).
+		Update("withdrawal_pin", hashedPIN).Error
+}

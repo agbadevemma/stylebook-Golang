@@ -36,5 +36,17 @@ func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 			middleware.RoleMiddleware(utils.Business),
 			m.handler.UpdateBusinessDetails,
 		)
+		business.POST(
+			"/withdrawal-pin/setup",
+			middleware.JWTAuthMiddleware(),
+			middleware.RoleMiddleware(utils.Business),
+			m.handler.SetupWithdrawalPIN,
+		)
+		business.PUT(
+			"/withdrawal-pin/update",
+			middleware.JWTAuthMiddleware(),
+			middleware.RoleMiddleware(utils.Business),
+			m.handler.UpdateWithdrawalPIN,
+		)
 	}
 }

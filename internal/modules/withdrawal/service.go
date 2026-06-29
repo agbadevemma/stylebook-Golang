@@ -14,6 +14,7 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/ledger"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Service struct {
@@ -25,6 +26,23 @@ type Service struct {
 
 func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.LedgerWriter, businesWriter business.BusinessWriter) *Service {
 	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter, businessWriter: businesWriter}
+}
+
+// HashPIN hashes a 4-digit PIN using bcrypt
+func (s *Service) HashPIN(pin string) (string, error) {
+	if len(pin) != 4 {
+		return "", errors.New("PIN must be exactly 4 digits")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(pin), bcrypt.DefaultCost)
+	return string(hash), err
+}
+
+// VerifyPIN compares a provided PIN with the hashed PIN stored in the database
+func (s *Service) VerifyPIN(providedPIN, hashedPIN string) bool {
+	if len(providedPIN) != 4 {
+		return false
+	}
+	return bcrypt.CompareHashAndPassword([]byte(hashedPIN), []byte(providedPIN)) == nil
 }
 
 func (s *Service) VerifySignature(payload []byte, signature string) bool {
@@ -41,7 +59,25 @@ func (s *Service) GetBusinessWithdrawals(businessID uuid.UUID) ([]models.Withdra
 	return s.repo.GetBusinessWithdrawals(businessID)
 }
 
-func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64) (*TransferResponse, error) {
+func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin string) (*TransferResponse, error) {
+	if len(pin) != 4 {
+		return nil, errors.New("invalid PIN format")
+	}
+
+	business, err := s.businessWriter.GetBusinessByID(businessID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify PIN
+	if business.WithdrawalPIN == "" {
+		return nil, errors.New("withdrawal PIN not set - please set up PIN in business settings first")
+	}
+
+	if !s.VerifyPIN(pin, business.WithdrawalPIN) {
+		return nil, errors.New("invalid PIN - withdrawal denied")
+	}
+
 	tx := s.repo.db.Begin()
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -68,12 +104,6 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64) (*Transfe
 	if amount > balance {
 		tx.Rollback()
 		return nil, errors.New("insufficient balance")
-	}
-
-	business, err := s.businessWriter.GetBusinessByID(businessID)
-	if err != nil {
-		tx.Rollback()
-		return nil, err
 	}
 
 	if business.TransferRecipient == "" {
@@ -127,14 +157,13 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64) (*Transfe
 	}
 
 	if res.Data.TransferCode != "" {
-	
+
 		existingWithdrawal, err := s.repo.GetWithdrawalByPaystackTransferCode(res.Data.TransferCode)
 		if err == nil && existingWithdrawal != nil && existingWithdrawal.ID != withdrawal.ID {
-		
+
 			tx.Rollback()
 			return nil, fmt.Errorf("transfer code already exists: %s", res.Data.TransferCode)
 		}
-
 
 		withdrawal.PaystackTransferCode = res.Data.TransferCode
 	}

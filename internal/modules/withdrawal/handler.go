@@ -50,7 +50,8 @@ func (h *Handler) CreateWithdrawal(c *gin.Context) {
 	}
 
 	var req struct {
-		Amount int64 `json:"amount" binding:"required"`
+		Amount int64  `json:"amount" binding:"required"`
+		PIN    string `json:"pin" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -63,7 +64,12 @@ func (h *Handler) CreateWithdrawal(c *gin.Context) {
 		return
 	}
 
-	res, err := h.service.CreateWithdrawal(businessID, req.Amount)
+	if len(req.PIN) != 4 {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("PIN must be exactly 4 digits"))
+		return
+	}
+
+	res, err := h.service.CreateWithdrawal(businessID, req.Amount, req.PIN)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return

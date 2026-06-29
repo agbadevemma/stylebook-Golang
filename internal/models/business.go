@@ -14,4 +14,6 @@ type Business struct {
 	BankCode          string `json:"bankCode" gorm:"type:varchar(10);default:''"`
 	AccountName       string `json:"accountName" gorm:"type:varchar(900);default:''"`
 	TransferRecipient string `json:"transferRecipient" gorm:"type:varchar(100);default:''"`
+	
+	WithdrawalPIN     string `json:"withdrawalPIN" gorm:"type:varchar(255);default:''"` // hashed PIN for withdrawal verification
 }

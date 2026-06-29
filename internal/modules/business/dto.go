@@ -13,4 +13,5 @@ type BusinessSettingsResponse struct {
 	AccountName   string `json:"accountName"`
 	BankName      string `json:"bankName"`
 	BankCode      string `json:"bankCode"`
+	HasWithdrawalPIN bool   `json:"hasWithdrawalPin"`
 }

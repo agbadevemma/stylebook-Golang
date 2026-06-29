@@ -53,6 +53,65 @@ func (h *Handler) UpdateBusinessDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, utils.SuccessResponse("business updated successfully", toBusinessSettingsResponse(business)))
 }
 
+func (h *Handler) SetupWithdrawalPIN(c *gin.Context) {
+	businessID, ok := getBusinessIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		PIN string `json:"pin" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("PIN is required"))
+		return
+	}
+
+	if len(req.PIN) != 4 {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("PIN must be exactly 4 digits"))
+		return
+	}
+
+	business, err := h.service.SetupWithdrawalPIN(businessID, req.PIN)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("withdrawal PIN set up successfully", toBusinessSettingsResponse(business)))
+}
+
+func (h *Handler) UpdateWithdrawalPIN(c *gin.Context) {
+	businessID, ok := getBusinessIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		OldPIN string `json:"oldPin" binding:"required"`
+		NewPIN string `json:"newPin" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("old PIN and new PIN are required"))
+		return
+	}
+
+	if len(req.OldPIN) != 4 || len(req.NewPIN) != 4 {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("PINs must be exactly 4 digits"))
+		return
+	}
+
+	business, err := h.service.UpdateWithdrawalPIN(businessID, req.OldPIN, req.NewPIN)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("withdrawal PIN updated successfully", toBusinessSettingsResponse(business)))
+}
+
 func getBusinessIDFromContext(c *gin.Context) (uuid.UUID, bool) {
 	busID, ok := c.Get("businessId")
 	if !ok {
@@ -78,5 +137,6 @@ func toBusinessSettingsResponse(business *models.Business) BusinessSettingsRespo
 		AccountNumber: business.AccountNumber,
 		BankName:      business.BankName,
 		BankCode:      business.BankCode,
+		HasWithdrawalPIN: business.WithdrawalPIN != "",
 	}
 }
