@@ -127,15 +127,14 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64) (*Transfe
 	}
 
 	if res.Data.TransferCode != "" {
-		// Check if this transfer code already exists (idempotency check)
+	
 		existingWithdrawal, err := s.repo.GetWithdrawalByPaystackTransferCode(res.Data.TransferCode)
 		if err == nil && existingWithdrawal != nil && existingWithdrawal.ID != withdrawal.ID {
-			// This transfer code already exists on a different withdrawal
-			// This shouldn't happen, but if it does, rollback this new one
+		
 			tx.Rollback()
 			return nil, fmt.Errorf("transfer code already exists: %s", res.Data.TransferCode)
 		}
-		// Only set if no error (error means not found, which is expected)
+
 
 		withdrawal.PaystackTransferCode = res.Data.TransferCode
 	}
