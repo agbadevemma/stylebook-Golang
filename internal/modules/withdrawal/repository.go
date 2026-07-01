@@ -3,6 +3,7 @@ package withdrawal
 import (
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
+	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -63,4 +64,30 @@ func (r *Repository) GetBusinessWithdrawals(businessID uuid.UUID) ([]models.With
 	}
 
 	return withdrawals, nil
+}
+
+func (r *Repository) UpdateWithdrawalTransferCode(
+	withdrawalID uuid.UUID,
+	transferCode string,
+	status utils.WithdrawalStatus,
+) error {
+	return r.db.
+		Model(&models.Withdrawal{}).
+		Where("id = ?", withdrawalID).
+		Updates(map[string]any{
+			"paystack_transfer_code": transferCode,
+			"status":                 status,
+		}).
+		Error
+}
+
+func (r *Repository) UpdateWithdrawalStatus(
+	withdrawalID uuid.UUID,
+	status utils.WithdrawalStatus,
+) error {
+	return r.db.
+		Model(&models.Withdrawal{}).
+		Where("id = ?", withdrawalID).
+		Update("status", status).
+		Error
 }
