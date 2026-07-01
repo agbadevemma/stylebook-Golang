@@ -66,7 +66,6 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin strin
 		return nil, errors.New("PIN must be exactly 4 digits")
 	}
 
-
 	business, err := s.businessWriter.GetBusinessByID(businessID)
 	if err != nil {
 		return nil, err
@@ -162,7 +161,7 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin strin
 	}
 
 	if res.Data.TransferCode != "" {
-
+		fmt.Printf("res.Data.TransferCode %v", res.Data.TransferCode)
 		err = s.repo.UpdateWithdrawalTransferCode(
 			withdrawal.ID,
 			res.Data.TransferCode,
