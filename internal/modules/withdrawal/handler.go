@@ -1,6 +1,7 @@
 package withdrawal
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -44,6 +45,7 @@ func (h *Handler) GetWithdrawalHistory(c *gin.Context) {
 }
 
 func (h *Handler) CreateWithdrawal(c *gin.Context) {
+
 	businessID, ok := getBusinessID(c)
 	if !ok {
 		return
@@ -70,6 +72,7 @@ func (h *Handler) CreateWithdrawal(c *gin.Context) {
 	}
 
 	res, err := h.service.CreateWithdrawal(businessID, req.Amount, req.PIN)
+	fmt.Printf("err %v", err)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
