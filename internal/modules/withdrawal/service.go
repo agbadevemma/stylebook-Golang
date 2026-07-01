@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -60,23 +61,34 @@ func (s *Service) GetBusinessWithdrawals(businessID uuid.UUID) ([]models.Withdra
 }
 
 func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin string) (*TransferResponse, error) {
-	if len(pin) != 4 {
-		return nil, errors.New("invalid PIN format")
+
+	if matched := regexp.MustCompile(`^\d{4}$`).MatchString(pin); !matched {
+		return nil, errors.New("PIN must be exactly 4 digits")
 	}
+	fmt.Println("HEYYYYY--HERE")
 
 	business, err := s.businessWriter.GetBusinessByID(businessID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Verify PIN
 	if business.WithdrawalPIN == "" {
 		return nil, errors.New("withdrawal PIN not set - please set up PIN in business settings first")
 	}
 
 	if !s.VerifyPIN(pin, business.WithdrawalPIN) {
-		return nil, errors.New("invalid PIN - withdrawal denied")
+		return nil, errors.New("invalid PIN")
 	}
+
+	if amount <= 0 {
+		return nil, errors.New("amount must be greater than zero")
+	}
+
+	if business.TransferRecipient == "" {
+		return nil, errors.New("bank account not set")
+	}
+
+	transferRef := fmt.Sprintf("wdr_%s", uuid.NewString())
 
 	tx := s.repo.db.Begin()
 	if tx.Error != nil {
@@ -92,13 +104,9 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin strin
 
 	balance, err := s.ledgerWriter.GetBusinessBalance(businessID)
 	if err != nil {
+		fmt.Printf("commit create:%v", err)
 		tx.Rollback()
 		return nil, err
-	}
-
-	if amount <= 0 {
-		tx.Rollback()
-		return nil, errors.New("amount must be greater than zero")
 	}
 
 	if amount > balance {
@@ -106,30 +114,36 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin strin
 		return nil, errors.New("insufficient balance")
 	}
 
+	existing, err := s.repo.GetWithdrawalByReference(transferRef)
+	if err == nil && existing != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("duplicate withdrawal request")
+	}
+
 	if business.TransferRecipient == "" {
 		tx.Rollback()
 		return nil, errors.New("bank account not set")
 	}
-
-	transferRef := fmt.Sprintf("wdr_%s", uuid.NewString())
+	paytemp := uuid.NewString()
 
 	withdrawal := &models.Withdrawal{
-		BusinessID:        businessID,
-		Amount:            amount,
-		Status:            utils.WithdrawalPending,
-		RecipientCode:     business.TransferRecipient,
-		TransferReference: transferRef,
+		BusinessID:           businessID,
+		Amount:               amount,
+		Status:               utils.WithdrawalPending,
+		RecipientCode:        business.TransferRecipient,
+		TransferReference:    transferRef,
+		PaystackTransferCode: paytemp,
 	}
 
 	if err := s.repo.CreateWithdrawal(tx, withdrawal); err != nil {
+		fmt.Printf("create:%v", err)
 		tx.Rollback()
 		return nil, err
 	}
 
-	withdrawal.Status = utils.WithdrawalProcessing
+	if err := tx.Commit().Error; err != nil {
+		fmt.Printf("commit create:%v", err)
 
-	if err := s.repo.UpdateWithdrawal(tx, withdrawal); err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -141,40 +155,28 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin strin
 		Reason:    "Business withdrawal",
 	})
 
+
 	if err != nil {
-		withdrawal.Status = utils.WithdrawalFailed
-
-		if saveErr := s.repo.UpdateWithdrawal(tx, withdrawal); saveErr != nil {
-			tx.Rollback()
-			return nil, saveErr
-		}
-
-		if commitErr := tx.Commit().Error; commitErr != nil {
-			return nil, commitErr
-		}
-
+		_ = s.repo.UpdateWithdrawalStatus(
+			withdrawal.ID,
+			utils.WithdrawalFailed,
+		)
 		return nil, err
 	}
+
 
 	if res.Data.TransferCode != "" {
 
-		existingWithdrawal, err := s.repo.GetWithdrawalByPaystackTransferCode(res.Data.TransferCode)
-		if err == nil && existingWithdrawal != nil && existingWithdrawal.ID != withdrawal.ID {
+		err = s.repo.UpdateWithdrawalTransferCode(
+			withdrawal.ID,
+			res.Data.TransferCode,
+			utils.WithdrawalProcessing,
+		)
 
-			tx.Rollback()
-			return nil, fmt.Errorf("transfer code already exists: %s", res.Data.TransferCode)
+		if err != nil {
+			fmt.Printf("update withdrawal status:%v", err)
+			return nil, err
 		}
-
-		withdrawal.PaystackTransferCode = res.Data.TransferCode
-	}
-
-	if err := s.repo.UpdateWithdrawal(tx, withdrawal); err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return nil, err
 	}
 
 	return res, nil
