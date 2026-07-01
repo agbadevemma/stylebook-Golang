@@ -65,7 +65,7 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin strin
 	if matched := regexp.MustCompile(`^\d{4}$`).MatchString(pin); !matched {
 		return nil, errors.New("PIN must be exactly 4 digits")
 	}
-	fmt.Println("HEYYYYY--HERE")
+
 
 	business, err := s.businessWriter.GetBusinessByID(businessID)
 	if err != nil {
@@ -124,15 +124,13 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin strin
 		tx.Rollback()
 		return nil, errors.New("bank account not set")
 	}
-	paytemp := uuid.NewString()
 
 	withdrawal := &models.Withdrawal{
-		BusinessID:           businessID,
-		Amount:               amount,
-		Status:               utils.WithdrawalPending,
-		RecipientCode:        business.TransferRecipient,
-		TransferReference:    transferRef,
-		PaystackTransferCode: paytemp,
+		BusinessID:        businessID,
+		Amount:            amount,
+		Status:            utils.WithdrawalPending,
+		RecipientCode:     business.TransferRecipient,
+		TransferReference: transferRef,
 	}
 
 	if err := s.repo.CreateWithdrawal(tx, withdrawal); err != nil {
@@ -155,7 +153,6 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin strin
 		Reason:    "Business withdrawal",
 	})
 
-
 	if err != nil {
 		_ = s.repo.UpdateWithdrawalStatus(
 			withdrawal.ID,
@@ -163,7 +160,6 @@ func (s *Service) CreateWithdrawal(businessID uuid.UUID, amount int64, pin strin
 		)
 		return nil, err
 	}
-
 
 	if res.Data.TransferCode != "" {
 
