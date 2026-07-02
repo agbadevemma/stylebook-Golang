@@ -17,7 +17,6 @@ func Migrate(db *Database) {
 		&models.Payment{},
 		&models.BookingService{},
 		&models.Ledger{},
-		&models.Withdrawal{},
 		&models.OTP{},
 	)
 
