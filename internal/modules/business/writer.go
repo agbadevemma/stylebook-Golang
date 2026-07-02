@@ -23,4 +23,5 @@ type BusinessWriter interface {
 		bankName string,
 		bankCode string,
 	) error
+	UpdateBusinessSubaccount(businessID uuid.UUID, subaccountCode string) error
 }

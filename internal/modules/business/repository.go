@@ -70,8 +70,8 @@ func (r *Repository) UpdateBusinessBankDetails(
 		}).Error
 }
 
-func (r *Repository) UpdateWithdrawalPIN(businessID uuid.UUID, hashedPIN string) error {
+func (r *Repository) UpdateBusinessSubaccount(businessID uuid.UUID, subaccountCode string) error {
 	return r.db.Model(&models.Business{}).
 		Where("id = ?", businessID).
-		Update("withdrawal_pin", hashedPIN).Error
+		Update("paystack_subaccount_code", subaccountCode).Error
 }
