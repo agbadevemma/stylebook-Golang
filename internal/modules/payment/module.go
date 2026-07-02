@@ -26,10 +26,10 @@ func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 		payment.GET("/bank/resolve", middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business), m.handler.ResolveBankAccount)
 		payment.GET("/banks", middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business), m.handler.GetBanks)
 		payment.POST(
-			"/recipient",
+			"/subaccount",
 			middleware.JWTAuthMiddleware(),
 			middleware.RoleMiddleware(utils.Business),
-			m.handler.CreateTransferRecipient,
+			m.handler.CreateSubAccount,
 		)
 	}
 
