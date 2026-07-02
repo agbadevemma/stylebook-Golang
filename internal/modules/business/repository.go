@@ -53,10 +53,10 @@ func (r *Repository) UpdateBusinessDetails(
 
 func (r *Repository) UpdateBusinessBankDetails(
 	businessID uuid.UUID,
-	accountName string,
-	accountNumber string,
-	transferRecipient string,
-	bankName string,
+	accountName,
+	accountNumber,
+	subaccountCode,
+	bankName,
 	bankCode string,
 ) error {
 	return r.db.Model(&models.Business{}).
@@ -65,13 +65,8 @@ func (r *Repository) UpdateBusinessBankDetails(
 			"account_name":       accountName,
 			"account_number":     accountNumber,
 			"bank_name":          bankName,
-			"transfer_recipient": transferRecipient,
 			"bank_code":          bankCode,
+			"subaccount_code":    subaccountCode,
 		}).Error
 }
 
-func (r *Repository) UpdateBusinessSubaccount(businessID uuid.UUID, subaccountCode string) error {
-	return r.db.Model(&models.Business{}).
-		Where("id = ?", businessID).
-		Update("paystack_subaccount_code", subaccountCode).Error
-}

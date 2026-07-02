@@ -33,9 +33,6 @@ func (s *Service) UpdateBusinessDetails(
 	return s.repo.GetBusinessByID(businessID)
 }
 
-func (s *Service) UpdateBusinessSubaccount(businessID uuid.UUID, subaccountCode string) error {
-	return s.repo.UpdateBusinessSubaccount(businessID, subaccountCode)
-}
 
 
 func (s *Service) GetBusinessByID(id uuid.UUID) (*models.Business, error) {

@@ -17,11 +17,10 @@ type BusinessWriter interface {
 	) error
 	UpdateBusinessBankDetails(
 		businessID uuid.UUID,
-		accountName string,
-		accountNumber string,
-		transferRecipient string,
-		bankName string,
+		accountName,
+		accountNumber,
+		subaccountCode,
+		bankName,
 		bankCode string,
 	) error
-	UpdateBusinessSubaccount(businessID uuid.UUID, subaccountCode string) error
 }
