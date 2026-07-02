@@ -25,7 +25,7 @@ func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	{
 		ledger.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business))
 
-		ledger.GET("/balance", m.handler.GetBusinessBalance)
+	
 
 	}
 
