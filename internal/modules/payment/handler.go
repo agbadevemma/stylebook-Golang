@@ -154,7 +154,17 @@ func (h *Handler) ResolveBankAccount(c *gin.Context) {
 	}))
 }
 
-func (h *Handler) CreateTransferRecipient(c *gin.Context) {
+func (h *Handler) GetBanks(c *gin.Context) {
+	banks, err := h.service.GetBanks()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch banks: "+err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("banks fetched successfully", banks))
+}
+
+func (h *Handler) CreateSubAccount(c *gin.Context) {
 	busID, ok := c.Get("businessId")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("missing business id"))
@@ -166,36 +176,18 @@ func (h *Handler) CreateTransferRecipient(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid business id"))
 		return
 	}
-	var req CreateTransferRecipientRequest
+	var req CreateSubaccount
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ValidationError(c, err)
 		return
 	}
 
-	res, err := h.service.CreateTransferRecipient(
-		req.AccountName,
-		req.AccountNumber,
-		req.BankName,
-		req.BankCode,
-		businessID,
-	)
+	_, err := h.service.CreateBusinessSubaccount(businessID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("recipient created", gin.H{
-		"recipientCode": res.Data.RecipientCode,
-	}))
-}
-
-func (h *Handler) GetBanks(c *gin.Context) {
-	banks, err := h.service.GetBanks()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch banks: "+err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, utils.SuccessResponse("banks fetched successfully", banks))
+	c.JSON(http.StatusOK, utils.SuccessResponse("banks fetched successfully", nil))
 }

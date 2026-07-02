@@ -64,23 +64,7 @@ type BankResolveResponse struct {
 	} `json:"data"`
 }
 
-type CreateRecipientRequest struct {
-	Type          string `json:"type"`
-	Name          string `json:"name"`
-	AccountNumber string `json:"account_number"`
-	BankCode      string `json:"bank_code"`
-	Currency      string `json:"currency"`
-}
-
-type CreateRecipientResponse struct {
-	Status  bool   `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		RecipientCode string `json:"recipient_code"`
-	} `json:"data"`
-}
-
-type CreateTransferRecipientRequest struct {
+type CreateSubaccount struct {
 	AccountName   string `json:"accountName" binding:"required"`
 	BankName      string `json:"bankName" binding:"required"`
 	AccountNumber string `json:"accountNumber" binding:"required"`
@@ -104,4 +88,41 @@ type BanksResponse struct {
 	Status  bool   `json:"status"`
 	Message string `json:"message"`
 	Data    []Bank `json:"data"`
+}
+
+type CreateSubaccountRequest struct {
+	BusinessName     string  `json:"business_name"`
+	SettlementBank   string  `json:"settlement_bank"`
+	AccountNumber    string  `json:"account_number"`
+	PercentageCharge float32 `json:"percentage_charge"`
+	Description      string  `json:"description,omitempty"`
+}
+
+type CreateSubaccountResponse struct {
+	Status  bool   `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		SubaccountCode   string  `json:"subaccount_code"`
+		BusinessName     string  `json:"business_name"`
+		SettlementBank   string  `json:"settlement_bank"`
+		AccountNumber    string  `json:"account_number"`
+		PercentageCharge float32 `json:"percentage_charge"`
+	} `json:"data"`
+}
+
+// Split Payment DTOs
+type SplitConfig struct {
+	Type           string `json:"type"` // "percentage" or "flat"
+	SubaccountCode string `json:"subaccount_code"`
+	Share          int64  `json:"share"` // percentage or amount in kobo
+}
+
+type InitSplitPaymentRequest struct {
+	Email     string `json:"email"`
+	Amount    int64  `json:"amount"`
+	Reference string `json:"reference"`
+	Split     struct {
+		Type   string        `json:"type"`
+		Splits []SplitConfig `json:"splits"`
+	} `json:"split"`
 }
