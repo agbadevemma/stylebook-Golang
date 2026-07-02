@@ -7,7 +7,6 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/modules/booking"
 	"github.com/stylebookgo/agbadevemma/internal/modules/bookingservice"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
-	"github.com/stylebookgo/agbadevemma/internal/modules/businesspublic"
 	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
 	"github.com/stylebookgo/agbadevemma/internal/modules/ledger"
 	"github.com/stylebookgo/agbadevemma/internal/modules/notification/email"
@@ -15,7 +14,6 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/modules/payment"
 	"github.com/stylebookgo/agbadevemma/internal/modules/service"
 	"github.com/stylebookgo/agbadevemma/internal/modules/users"
-	"github.com/stylebookgo/agbadevemma/internal/modules/withdrawal"
 	"gorm.io/gorm"
 )
 
@@ -30,22 +28,18 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	paymentRepo := payment.NewRepository(db)
 	ledgerRepo := ledger.NewRepository(db)
 	paymentProvider := payment.NewProvider()
-	withdrawalRepo := withdrawal.NewRepository(db)
-	withdrawalProvider := withdrawal.NewProvider()
-	withdrawalService := withdrawal.NewService(withdrawalRepo, withdrawalProvider, ledgerRepo, businessRepo)
+
 	emailService := email.NewEmailService()
 	otpRepo := otp.NewRepository(db)
 	otpService := otp.NewService(otpRepo, emailService)
 	otp.NewModule(otpService).ModuleRoutes(api)
-	paymentService := payment.NewService(paymentRepo, paymentProvider, ledgerRepo, businessRepo, withdrawalService)
+	paymentService := payment.NewService(paymentRepo, paymentProvider, ledgerRepo, businessRepo)
 	bookingServiceRepo := bookingservice.NewRepository(db)
 
 	users.NewModule(db, businessRepo, businessHourRepo, otpService).ModuleRoutes(api)
 	business.NewModule(db).ModuleRoutes(api)
-	businesspublic.NewModule(businessRepo).ModuleRoutes(api)
 	service.NewModule(db, businessRepo).ModuleRoutes(api)
 	payment.NewModule(paymentService).ModuleRoutes(api)
-	withdrawal.NewModule(db, ledgerRepo, businessRepo).ModuleRoutes(api)
 	businesshour.NewModule(db).ModuleRoutes(api)
 	blockedtime.NewModule(db, businessRepo).ModuleRoutes(api)
 	booking.NewModule(db, bookingServiceRepo, businessHourRepo, blockedRepo, serviceRepo, paymentService, businessRepo).ModuleRoutes(api)
