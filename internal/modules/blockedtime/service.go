@@ -2,7 +2,6 @@ package blockedtime
 
 import (
 	"errors"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
@@ -23,41 +22,37 @@ func (s *Service) CreateBlockedTime(
 	businessID uuid.UUID,
 ) error {
 
-	business, err := s.businessWriter.GetBusinessByID(businessID)
+	_, err := s.businessWriter.GetBusinessByID(businessID)
 	if err != nil {
 		return err
 	}
 
-	loc, err := time.LoadLocation(business.Timezone)
-	if err != nil {
-		return err
-	}
-
-	start := req.StartTime.In(loc)
-	end := req.EndTime.In(loc)
-
-	if end.Before(start) {
+	// Validate that end time is after start time (timezone-independent)
+	// Both are already in UTC from frontend
+	if req.EndTime.Before(req.StartTime) {
 		return errors.New("end time must be after start time")
 	}
 
+	// Check for overlaps using UTC times
 	exists, err := s.repo.HasOverlappingBlockedTime(
 		businessID,
-		start.UTC(),
-		end.UTC(),
+		req.StartTime,
+		req.EndTime,
 	)
 
 	if err != nil {
 		return err
 	}
-	
+
 	if exists {
 		return errors.New("overlapping blocked time exists")
 	}
 
+	// Store in UTC for consistency
 	blockedTime := &models.BlockedTime{
 		BusinessID: businessID,
-		StartTime:  start.UTC(),
-		EndTime:    end.UTC(),
+		StartTime:  req.StartTime,
+		EndTime:    req.EndTime,
 		Reason:     req.Reason,
 	}
 
@@ -87,24 +82,17 @@ func (s *Service) UpdateBlockedTime(
 		return err
 	}
 
-	business, err := s.businessWriter.GetBusinessByID(businessID)
-	if err != nil {
-		return err
-	}
-
-	loc, err := time.LoadLocation(business.Timezone)
+	_, err = s.businessWriter.GetBusinessByID(businessID)
 	if err != nil {
 		return err
 	}
 
 	if !req.StartTime.IsZero() {
-		start := req.StartTime.In(loc)
-		blockedTime.StartTime = start.UTC()
+		blockedTime.StartTime = req.StartTime
 	}
 
 	if !req.EndTime.IsZero() {
-		end := req.EndTime.In(loc)
-		blockedTime.EndTime = end.UTC()
+		blockedTime.EndTime = req.EndTime
 	}
 
 	if !blockedTime.StartTime.Before(blockedTime.EndTime) {
