@@ -77,9 +77,7 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 		return BookingResponse{}, errors.New("business has not completed payment setup. Please add bank details")
 	}
 
-	// Backend operates entirely in UTC - no timezone conversions
-	// Frontend already validated that booking is within business hours using real-time availability
-	// Backend validates again as defense-in-depth
+
 	startTimeUTC := req.StartTime
 	endTimeUTC := startTimeUTC.Add(
 		time.Duration(totalDuration) * time.Minute,
