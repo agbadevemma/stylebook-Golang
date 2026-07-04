@@ -58,7 +58,8 @@ func (r *Repository) GetBusinessBookingStats(businessID uuid.UUID) (total int64,
 		return
 	}
 
-	todayStart := time.Now().UTC().Truncate(24 * time.Hour)
+	now := time.Now().UTC()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	todayEnd := todayStart.Add(24 * time.Hour)
 	if err = r.db.Model(&models.Booking{}).
 		Where("business_id = ? AND start_time >= ? AND start_time < ?", businessID, todayStart, todayEnd).
