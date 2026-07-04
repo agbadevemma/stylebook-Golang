@@ -1,7 +1,9 @@
 package availability
 
+import "time"
+
 type SlotResponse struct {
-	Time  string `json:"time"`
+	Time time.Time `json:"time"` // ISO 8601 UTC timestamp
 }
 
 type DayAvailability struct {
