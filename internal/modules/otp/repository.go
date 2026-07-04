@@ -33,7 +33,7 @@ func (r *Repository) FindValidOTP(
 
 	err := r.db.
 		Where("email = ? AND type = ? AND used = ? AND expires_at > ?",
-			email, otpType, false, time.Now()).
+			email, otpType, false, time.Now().UTC()).
 		Order("created_at DESC").
 		First(&otp).Error
 
