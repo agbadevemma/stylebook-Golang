@@ -115,7 +115,7 @@ func (s *Service) CreateBusinessSubaccount(businessID uuid.UUID, req CreateSubac
 		return "", errors.New("failed to get business details")
 	}
 
-	res, err := s.provider.CreateSubaccount(business.Name, req.BankCode, req.AccountNumber)
+	res, err := s.provider.CreateSubaccount(business.AccountName, req.BankCode, req.AccountNumber)
 	if err != nil {
 		return "", err
 	}
