@@ -43,33 +43,21 @@ func (s *Service) GetAvailabilityRange(
 		return nil, err
 	}
 
-	startDate = time.Date(
-		startDate.Year(),
-		startDate.Month(),
-		startDate.Day(),
-		0, 0, 0, 0,
-		loc,
-	)
-
-	endDate = time.Date(
-		endDate.Year(),
-		endDate.Month(),
-		endDate.Day(),
-		23, 59, 59, 0,
-		loc,
-	)
-
+	// Iterate through UTC dates, but determine day-of-week based on business timezone
+	// This ensures we get business hours for the correct calendar day in business's local time
 	var response []DayAvailability
 
 	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
+		// Convert UTC date to business timezone to determine which calendar day it represents
+		dLocal := d.In(loc)
 
-		slots, err := s.getDaySlots(businessID, d)
+		slots, err := s.getDaySlots(businessID, dLocal)
 		if err != nil {
 			return nil, err
 		}
 
 		response = append(response, DayAvailability{
-			Date:  d.Format("2006-01-02"),
+			Date:  d.Format("2006-01-02"), // Return UTC date as YYYY-MM-DD
 			Slots: slots,
 		})
 	}
@@ -79,10 +67,13 @@ func (s *Service) GetAvailabilityRange(
 
 func (s *Service) getDaySlots(
 	businessID uuid.UUID,
-	date time.Time,
+
+	dateLocal time.Time,
+
 ) ([]SlotResponse, error) {
 
-	day := int(date.Weekday())
+	// Use local time to determine which day of week (in business's timezone)
+	day := int(dateLocal.Weekday())
 
 	hour, err := s.businessHourWriter.GetBusinessHour(businessID, day)
 
@@ -94,32 +85,36 @@ func (s *Service) getDaySlots(
 		return []SlotResponse{}, nil
 	}
 
-	start, err := funct.Combine(date, hour.StartTime)
+	// Combine business hours (local time strings) with local date
+	start, err := funct.Combine(dateLocal, hour.StartTime)
 	if err != nil {
 		return nil, err
 	}
-	end, err := funct.Combine(date, hour.EndTime)
+	startUTC := start.UTC()
+
+	end, err := funct.Combine(dateLocal, hour.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	endUTC := end.UTC()
+
+	blocked, err := s.blockedTimesWriter.GetBlockedTimes(businessID, startUTC, endUTC)
 	if err != nil {
 		return nil, err
 	}
 
-	blocked, err := s.blockedTimesWriter.GetBlockedTimes(businessID, start, end)
+	bookings, err := s.bookingWriter.GetBookings(businessID, startUTC, endUTC)
 	if err != nil {
 		return nil, err
 	}
 
-	bookings, err := s.bookingWriter.GetBookings(businessID, start, end)
-	if err != nil {
-		return nil, err
-	}
-
-	slotDuration := 30 * time.Minute // or service-based later
+	slotDuration := 30 * time.Minute 
 	step := 15 * time.Minute
 
 	var slots []SlotResponse
-	cursor := start
+	cursor := startUTC
 
-	for !cursor.Add(slotDuration).After(end) {
+	for !cursor.Add(slotDuration).After(endUTC) {
 
 		slotEnd := cursor.Add(slotDuration)
 
@@ -133,8 +128,9 @@ func (s *Service) getDaySlots(
 			continue
 		}
 
+		
 		slots = append(slots, SlotResponse{
-			Time: cursor.Format("15:04"),
+			Time: cursor,
 		})
 
 		cursor = cursor.Add(15 * time.Minute)
