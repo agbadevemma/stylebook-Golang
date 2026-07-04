@@ -39,27 +39,20 @@ func (h *Handler) GetAvailability(c *gin.Context) {
 		return
 	}
 
-	startDate, err := time.Parse("2006-01-02", startDateStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid start date format, expected YYYY-MM-DD"))
+	// Validate date format
+	if err := utils.ValidateDateRange(startDateStr, endDateStr); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
 	}
 
-	today := time.Now().UTC().Truncate(24 * time.Hour)
+	startDate, _ := time.Parse("2006-01-02", startDateStr)
+	endDate, _ := time.Parse("2006-01-02", endDateStr)
+
+	// Validate start date is not in the past
+	now := time.Now().UTC()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	if startDate.Before(today) {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("start date cannot be in the past"))
-		return
-	}
-
-
-	endDate, err := time.Parse("2006-01-02", endDateStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid end date format, expected YYYY-MM-DD"))
-		return
-	}
-
-	if endDate.Before(startDate) {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("end date must be after start date"))
 		return
 	}
 

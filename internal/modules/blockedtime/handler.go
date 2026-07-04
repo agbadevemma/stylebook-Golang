@@ -25,7 +25,20 @@ func (h *Handler) CreateBlockedTime(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-		
+
+	// Validate timestamps are in UTC and proper format
+	if err := utils.ValidateISO8601Timestamp(req.StartTime, "startTime"); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+	if err := utils.ValidateISO8601Timestamp(req.EndTime, "endTime"); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+	if err := utils.ValidateTimeRange(req.StartTime, req.EndTime, "startTime", "endTime"); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
 
 	businessID := c.MustGet("businessId").(uuid.UUID)
 
@@ -125,6 +138,27 @@ func (h *Handler) UpdateBlockedTime(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ValidationError(c, err)
 		return
+	}
+
+	// Validate timestamps if provided
+	if !req.StartTime.IsZero() {
+		if err := utils.ValidateISO8601Timestamp(req.StartTime, "startTime"); err != nil {
+			c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+			return
+		}
+	}
+	if !req.EndTime.IsZero() {
+		if err := utils.ValidateISO8601Timestamp(req.EndTime, "endTime"); err != nil {
+			c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+			return
+		}
+	}
+	// If both times are provided, validate the range
+	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
+		if err := utils.ValidateTimeRange(req.StartTime, req.EndTime, "startTime", "endTime"); err != nil {
+			c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+			return
+		}
 	}
 
 	err = h.service.UpdateBlockedTime(id, businessID, &req)

@@ -27,6 +27,12 @@ func (h *Handler) CreateBooking(c *gin.Context) {
 		return
 	}
 
+	// Validate startTime is in UTC
+	if err := utils.ValidateISO8601Timestamp(req.StartTime, "startTime"); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+
 	res, err := h.service.CreateBooking(&req, req.BusinessID)
 
 	if err != nil {
