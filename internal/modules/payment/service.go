@@ -217,7 +217,7 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 			Type:        utils.LedgerCredit,
 			Reference:   payment.Reference,
 			Reason:      "Payment successful",
-			CreatedAt:   time.Now(),
+			CreatedAt:   time.Now().UTC(),
 		}
 
 		if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
@@ -232,7 +232,7 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 		return err
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	payment.Status = utils.PaymentSuccess
 	payment.IsVerified = true
@@ -333,7 +333,7 @@ func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) erro
 			Type:        utils.LedgerDebit,
 			Reference:   payment.Reference + "-refund",
 			Reason:      "Payment refunded",
-			CreatedAt:   time.Now(),
+			CreatedAt:   time.Now().UTC(),
 		}
 
 		if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
