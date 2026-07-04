@@ -36,7 +36,7 @@ func (s *Service) SendOTP(
 		Email:     email,
 		Type:      otpType,
 		CodeHash:  funct.HashOTP(code),
-		ExpiresAt: time.Now().Add(10 * time.Minute),
+		ExpiresAt: time.Now().UTC().Add(10 * time.Minute),
 		Used:      false,
 	}
 
@@ -74,7 +74,7 @@ func (s *Service) VerifyOTP(
 		return errors.New("invalid otp")
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	otp.Used = true
 	otp.VerifiedAt = &now
 
