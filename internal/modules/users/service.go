@@ -189,7 +189,7 @@ func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
 	if err != nil {
 		return err
 	}
-	now := time.Now()
+	now := time.Now().UTC()
 	user.IsEmailVerified = true
 	user.EmailVerifiedAt = &now
 
