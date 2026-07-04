@@ -71,6 +71,12 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 		return BookingResponse{}, err
 	}
 
+	// Check if business has set up a subaccount (required for payments)
+	if business.SubaccountCode == "" || business.SubaccountCode == "null" {
+		tx.Rollback()
+		return BookingResponse{}, errors.New("business has not completed payment setup. Please add bank details")
+	}
+
 	loc, err := time.LoadLocation(business.Timezone)
 	if err != nil {
 		tx.Rollback()

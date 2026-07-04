@@ -183,11 +183,13 @@ func (h *Handler) CreateSubAccount(c *gin.Context) {
 		return
 	}
 
-	_, err := h.service.CreateBusinessSubaccount(businessID, req)
+	subaccountCode, err := h.service.CreateBusinessSubaccount(businessID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("banks fetched successfully", nil))
+	c.JSON(http.StatusOK, utils.SuccessResponse("subaccount created successfully", gin.H{
+		"subaccountCode": subaccountCode,
+	}))
 }
