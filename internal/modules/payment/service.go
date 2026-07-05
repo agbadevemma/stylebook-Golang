@@ -110,7 +110,7 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 }
 
 func (s *Service) CreateBusinessSubaccount(businessID uuid.UUID, req CreateSubaccount) (string, error) {
-	business, err := s.business.GetBusinessByID(businessID)
+	_, err := s.business.GetBusinessByID(businessID)
 	if err != nil {
 		return "", errors.New("failed to get business details")
 	}
