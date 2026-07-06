@@ -128,3 +128,12 @@ type InitSplitPaymentRequest struct {
 		Splits []SplitConfig `json:"splits"`
 	} `json:"split"`
 }
+
+type UpdateSubaccountRequest struct {
+	BusinessName     string  `json:"business_name"`
+	SettlementBank   string  `json:"settlement_bank"`
+	AccountNumber    string  `json:"account_number"`
+	PercentageCharge float32 `json:"percentage_charge"`
+	Active           bool    `json:"active"`
+	Description      string  `json:"description,omitempty"`
+}

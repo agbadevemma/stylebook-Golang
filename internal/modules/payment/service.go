@@ -110,14 +110,24 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 }
 
 func (s *Service) CreateBusinessSubaccount(businessID uuid.UUID, req CreateSubaccount) (string, error) {
-	_, err := s.business.GetBusinessByID(businessID)
+	business, err := s.business.GetBusinessByID(businessID)
 	if err != nil {
 		return "", errors.New("failed to get business details")
 	}
 
-	res, err := s.provider.CreateSubaccount(req.AccountName, req.BankCode, req.AccountNumber)
-	if err != nil {
-		return "", err
+	var res *CreateSubaccountResponse
+	if business.SubaccountCode != "" {
+		res, err = s.provider.UpdateSubaccount(business.SubaccountCode, business.Name, req.BankCode, req.AccountNumber)
+		if err != nil {
+			return "", err
+		}
+
+	} else {
+
+		res, err = s.provider.CreateSubaccount(business.Name, req.BankCode, req.AccountNumber)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	if err := s.business.UpdateBusinessBankDetails(businessID, req.AccountName, req.AccountNumber, res.Data.SubaccountCode, req.BankName, req.BankCode); err != nil {

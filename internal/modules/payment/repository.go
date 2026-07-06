@@ -1,6 +1,8 @@
 package payment
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
@@ -94,6 +96,23 @@ func (r *Repository) GetPaymentsByBusiness(
 			"name ILIKE ? OR email ILIKE ? OR reference ILIKE ? OR status ILIKE ?",
 			like, like, like, like,
 		)
+	}
+
+	// Add date range filter
+	if params.StartDate != "" {
+		startTime, err := time.Parse("2006-01-02", params.StartDate)
+		if err == nil {
+			query = query.Where("created_at >= ?", startTime)
+		}
+	}
+
+	if params.EndDate != "" {
+		endTime, err := time.Parse("2006-01-02", params.EndDate)
+		if err == nil {
+			// Add 24 hours to include the entire end date
+			endTime = endTime.Add(24 * time.Hour)
+			query = query.Where("created_at < ?", endTime)
+		}
 	}
 
 	if err := query.Count(&total).Error; err != nil {

@@ -48,8 +48,6 @@ func (p *Provider) ResolveBankAccount(accountNumber, bankCode string) (*BankReso
 	return &result, nil
 }
 
-
-
 func (p *Provider) GetBanks() ([]Bank, error) {
 	url := fmt.Sprintf("%s/bank", os.Getenv("PAYSTACK_BASE_URL"))
 
@@ -86,7 +84,7 @@ func (p *Provider) CreateSubaccount(businessName, settlementBank, accountNumber 
 		BusinessName:     businessName,
 		SettlementBank:   settlementBank,
 		AccountNumber:    accountNumber,
-		PercentageCharge: 0, 
+		PercentageCharge: 0,
 		Description:      fmt.Sprintf("Subaccount for %s", businessName),
 	}
 
@@ -96,6 +94,49 @@ func (p *Provider) CreateSubaccount(businessName, settlementBank, accountNumber 
 	}
 
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+os.Getenv("PAYSTACK_SECRET_KEY"))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var result CreateSubaccountResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	if !result.Status {
+		return nil, fmt.Errorf("paystack error: %s", result.Message)
+	}
+
+	return &result, nil
+}
+
+func (p *Provider) UpdateSubaccount(subaccountCode, businessName, settlementBank, accountNumber string) (*CreateSubaccountResponse, error) {
+	url := fmt.Sprintf("%s/subaccount/%s", os.Getenv("PAYSTACK_BASE_URL"), subaccountCode)
+	payload := UpdateSubaccountRequest{
+		BusinessName:     businessName,
+		SettlementBank:   settlementBank,
+		AccountNumber:    accountNumber,
+		PercentageCharge: 0,
+		Active:           true,
+		Description:      fmt.Sprintf("Updated subaccount for %s", businessName),
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
