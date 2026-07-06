@@ -84,6 +84,8 @@ func (h *Handler) ListBusinessBookings(c *gin.Context) {
 	page := 1
 	pageSize := 10
 	search := c.Query("search")
+	startDate := c.Query("startDate")  // YYYY-MM-DD
+	endDate := c.Query("endDate")      // YYYY-MM-DD
 
 	if p := c.Query("page"); p != "" {
 		if v, err := strconv.Atoi(p); err == nil && v > 0 {
@@ -96,7 +98,7 @@ func (h *Handler) ListBusinessBookings(c *gin.Context) {
 		}
 	}
 
-	params := ListBookingsParams{Page: page, PageSize: pageSize, Search: search}
+	params := ListBookingsParams{Page: page, PageSize: pageSize, Search: search, StartDate: startDate, EndDate: endDate}
 
 	bookings, total, err := h.service.ListBusinessBookings(businessID, params)
 	if err != nil {

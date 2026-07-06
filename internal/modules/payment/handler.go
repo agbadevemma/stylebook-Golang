@@ -77,6 +77,8 @@ func (h *Handler) GetBusinessTransactions(c *gin.Context) {
 	page := 1
 	pageSize := 10
 	search := c.Query("search")
+	startDate := c.Query("startDate")  // YYYY-MM-DD
+	endDate := c.Query("endDate")      // YYYY-MM-DD
 
 	if p := c.Query("page"); p != "" {
 		if v, err := strconv.Atoi(p); err == nil && v > 0 {
@@ -90,9 +92,11 @@ func (h *Handler) GetBusinessTransactions(c *gin.Context) {
 	}
 
 	params := ListTransactionsParams{
-		Page:     page,
-		PageSize: pageSize,
-		Search:   search,
+		Page:      page,
+		PageSize:  pageSize,
+		Search:    search,
+		StartDate: startDate,
+		EndDate:   endDate,
 	}
 
 	data, total, err := h.service.GetBusinessTransactions(businessID, params)

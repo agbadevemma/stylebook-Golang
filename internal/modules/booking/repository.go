@@ -97,6 +97,23 @@ func (r *Repository) ListBusinessBookings(businessID uuid.UUID, params ListBooki
 		)
 	}
 
+	// Add date range filter
+	if params.StartDate != "" {
+		startTime, err := time.Parse("2006-01-02", params.StartDate)
+		if err == nil {
+			query = query.Where("start_time >= ?", startTime)
+		}
+	}
+
+	if params.EndDate != "" {
+		endTime, err := time.Parse("2006-01-02", params.EndDate)
+		if err == nil {
+			// Add 24 hours to include the entire end date
+			endTime = endTime.Add(24 * time.Hour)
+			query = query.Where("start_time < ?", endTime)
+		}
+	}
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
