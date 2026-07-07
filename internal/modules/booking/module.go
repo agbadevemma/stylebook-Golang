@@ -2,12 +2,14 @@ package booking
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/stylebookgo/agbadevemma/internal/middleware"
 	"github.com/stylebookgo/agbadevemma/internal/modules/blockedtime"
 	"github.com/stylebookgo/agbadevemma/internal/modules/bookingservice"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
 	"github.com/stylebookgo/agbadevemma/internal/modules/payment"
 	"github.com/stylebookgo/agbadevemma/internal/modules/service"
+	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -31,4 +33,9 @@ func NewModule(db *gorm.DB, bookingserviceWriter bookingservice.BookingServiceWr
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	booking := api.Group("/booking")
 	booking.POST("/", m.handler.CreateBooking)
+
+	businessBooking := api.Group("/booking")
+	businessBooking.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business))
+	businessBooking.GET("/list", m.handler.ListBusinessBookings)
+	businessBooking.GET("/stats", m.handler.GetBusinessStats)
 }

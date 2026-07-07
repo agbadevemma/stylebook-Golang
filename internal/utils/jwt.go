@@ -31,8 +31,8 @@ func GenerateToken(userID, email string, role UserRole, businessId uuid.UUID) (s
 		Role:       role,
 		BusinessID: businessId,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
 		},
 	}
 

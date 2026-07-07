@@ -24,7 +24,7 @@ func NewModule(db *gorm.DB, businessWriter business.BusinessWriter) *Module {
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	blockedTime := api.Group("/blockedtime")
 	{
-		blockedTime.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Admin))
+		blockedTime.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business))
 
 		blockedTime.POST("/create", m.handler.CreateBlockedTime)
 		blockedTime.GET("/list", m.handler.ListBlockedTime)

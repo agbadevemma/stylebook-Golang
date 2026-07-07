@@ -1,6 +1,8 @@
 package payment
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
@@ -79,8 +81,7 @@ func (r *Repository) UpdateBookingStatus(
 
 func (r *Repository) GetPaymentsByBusiness(
 	businessID uuid.UUID,
-	limit int,
-	offset int,
+	params ListTransactionsParams,
 ) ([]models.Payment, int64, error) {
 
 	var payments []models.Payment
@@ -89,13 +90,39 @@ func (r *Repository) GetPaymentsByBusiness(
 	query := r.db.Model(&models.Payment{}).
 		Where("business_id = ?", businessID)
 
+	if params.Search != "" {
+		like := "%" + params.Search + "%"
+		query = query.Where(
+			"name ILIKE ? OR email ILIKE ? OR reference ILIKE ? OR status ILIKE ?",
+			like, like, like, like,
+		)
+	}
+
+	// Add date range filter
+	if params.StartDate != "" {
+		startTime, err := time.Parse("2006-01-02", params.StartDate)
+		if err == nil {
+			query = query.Where("created_at >= ?", startTime)
+		}
+	}
+
+	if params.EndDate != "" {
+		endTime, err := time.Parse("2006-01-02", params.EndDate)
+		if err == nil {
+			// Add 24 hours to include the entire end date
+			endTime = endTime.Add(24 * time.Hour)
+			query = query.Where("created_at < ?", endTime)
+		}
+	}
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	offset := (params.Page - 1) * params.PageSize
 	err := query.
 		Order("created_at DESC").
-		Limit(limit).
+		Limit(params.PageSize).
 		Offset(offset).
 		Find(&payments).Error
 

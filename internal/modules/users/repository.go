@@ -35,3 +35,8 @@ func (r *Repository) GetUserbyEmail(email string) (*models.User, error) {
 	}
 	return &user, nil
 }
+
+func (r *Repository) UpdateUser(tx *gorm.DB, user *models.User) error {
+
+	return tx.Save(user).Error
+}

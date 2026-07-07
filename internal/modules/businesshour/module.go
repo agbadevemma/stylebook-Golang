@@ -23,7 +23,7 @@ func NewModule(db *gorm.DB) *Module {
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	businessHour := api.Group("/business")
 	{
-		businessHour.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Admin))
+		businessHour.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business))
 		businessHour.GET("/hours", m.handler.ListBusinessHours)
 		businessHour.POST("/hours", m.handler.CreateBusinessHour)
 		businessHour.PUT("/hours", m.handler.UpdateBusinessHour)

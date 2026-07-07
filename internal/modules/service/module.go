@@ -24,7 +24,9 @@ func NewModule(db *gorm.DB, bus business.BusinessWriter) *Module {
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	service := api.Group("/services")
 	{
-		service.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Admin))
+		service.GET("/public/:businessId", m.handler.ListPublicServices)
+
+		service.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business))
 
 		service.POST("/create", m.handler.CreateService)
 		service.GET("/list", m.handler.ListServices)

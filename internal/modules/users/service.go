@@ -2,11 +2,13 @@ package users
 
 import (
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
+	"github.com/stylebookgo/agbadevemma/internal/modules/otp"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -16,10 +18,11 @@ type Service struct {
 
 	businessWriter     business.BusinessWriter
 	businessHourWriter businesshour.BusinessHourWriter
+	otpWriter          otp.OtpWriter
 }
 
-func NewService(repo *Repository, bus business.BusinessWriter, busHour businesshour.BusinessHourWriter) *Service {
-	return &Service{repo: repo, businessWriter: bus, businessHourWriter: busHour}
+func NewService(repo *Repository, bus business.BusinessWriter, busHour businesshour.BusinessHourWriter, otpWriter otp.OtpWriter) *Service {
+	return &Service{repo: repo, businessWriter: bus, businessHourWriter: busHour, otpWriter: otpWriter}
 }
 
 func (s *Service) Signup(req *SignupRequest) error {
@@ -81,7 +84,7 @@ func (s *Service) Signup(req *SignupRequest) error {
 		return err
 	}
 
-	if req.Role == utils.Admin {
+	if req.Role == utils.Business {
 		business := &models.Business{
 			Name:    req.BusinessName,
 			OwnerID: user.ID,
@@ -151,7 +154,10 @@ func (s *Service) Signup(req *SignupRequest) error {
 			}
 		}
 	}
-
+	if err := s.otpWriter.SendOTP(tx, req.Email, utils.OTPTypeEmailVerification); err != nil {
+		tx.Rollback()
+		return err
+	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err
@@ -160,23 +166,123 @@ func (s *Service) Signup(req *SignupRequest) error {
 	return nil
 }
 
-func (s *Service) Login(req *LoginRequest) (string, error) {
+func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
+	tx := s.repo.db.Begin()
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	err := s.otpWriter.VerifyOTP(tx, req.Email, req.Code, req.Type)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 	user, err := s.repo.GetUserbyEmail(req.Email)
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return err
+	}
+	now := time.Now().UTC()
+	user.IsEmailVerified = true
+	user.EmailVerifiedAt = &now
+
+	if err := s.repo.UpdateUser(tx, user); err != nil {
+		tx.Rollback()
+		return errors.New("failed to update password")
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
+
+}
+
+func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
+	tx := s.repo.db.Begin()
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	user, err := s.repo.GetUserbyEmail(req.Email)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("user not found")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err == nil {
+		tx.Rollback()
+		return errors.New("Create New Password")
+	}
+	if len(req.Password) < 8 {
+		tx.Rollback()
+		return errors.New("password too weak")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword(
+		[]byte(req.Password),
+		bcrypt.DefaultCost,
+	)
+
+	if err != nil {
+		tx.Rollback()
+		return errors.New("error occured while hashing")
+	}
+
+	if err := s.otpWriter.VerifyOTP(tx, user.Email, req.Code, utils.OTPTypePasswordReset); err != nil {
+		tx.Rollback()
+		return errors.New(err.Error())
+	}
+	user.Password = string(hashedPassword)
+	now := time.Now()
+	user.PasswordChangedAt = &now
+	if err := s.repo.UpdateUser(tx, user); err != nil {
+		tx.Rollback()
+		return errors.New("failed to update password")
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
+}
+
+func (s *Service) Login(req *LoginRequest) (string, *models.Business, error) {
+	user, err := s.repo.GetUserbyEmail(req.Email)
+	if err != nil {
+		return "", nil, errors.New("invalid email or password")
+	}
+	if !user.IsEmailVerified {
+		return "", nil, errors.New("Email is not verified")
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return "", nil, errors.New("invalid email or password")
 	}
 	business, err := s.businessWriter.GetBusinessByUserID(user.ID)
 	if err != nil {
-		return "", errors.New("business not found")
+		return "", nil, errors.New("business not found")
 	}
 	token, err := utils.GenerateToken(user.ID.String(), user.Email, user.Role, business.ID)
 	if err != nil {
-		return "", errors.New("failed to generate token")
+		return "", nil, errors.New("failed to generate token")
 	}
 
-	return token, nil
+	return token, business, nil
 }

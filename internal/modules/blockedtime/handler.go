@@ -22,14 +22,28 @@ func (h *Handler) CreateBlockedTime(c *gin.Context) {
 	var req CreateBlockedTimeRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("An error occured"))
+		utils.ValidationError(c, err)
+		return
+	}
+
+	// Validate timestamps are in UTC and proper format
+	if err := utils.ValidateISO8601Timestamp(req.StartTime, "startTime"); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+	if err := utils.ValidateISO8601Timestamp(req.EndTime, "endTime"); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+	if err := utils.ValidateTimeRange(req.StartTime, req.EndTime, "startTime", "endTime"); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
 	}
 
 	businessID := c.MustGet("businessId").(uuid.UUID)
 
 	if err := h.service.CreateBlockedTime(&req, businessID); err != nil {
-		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("An error occured"))
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse(err.Error()))
 		return
 	}
 
@@ -55,7 +69,7 @@ func (h *Handler) ListBlockedTime(c *gin.Context) {
 			return
 
 		default:
-			c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch "))
+			c.JSON(http.StatusInternalServerError, utils.ErrorResponse(err.Error()))
 			return
 		}
 
@@ -124,6 +138,27 @@ func (h *Handler) UpdateBlockedTime(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ValidationError(c, err)
 		return
+	}
+
+	// Validate timestamps if provided
+	if !req.StartTime.IsZero() {
+		if err := utils.ValidateISO8601Timestamp(req.StartTime, "startTime"); err != nil {
+			c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+			return
+		}
+	}
+	if !req.EndTime.IsZero() {
+		if err := utils.ValidateISO8601Timestamp(req.EndTime, "endTime"); err != nil {
+			c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+			return
+		}
+	}
+	// If both times are provided, validate the range
+	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
+		if err := utils.ValidateTimeRange(req.StartTime, req.EndTime, "startTime", "endTime"); err != nil {
+			c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+			return
+		}
 	}
 
 	err = h.service.UpdateBlockedTime(id, businessID, &req)

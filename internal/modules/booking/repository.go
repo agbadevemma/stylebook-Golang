@@ -50,3 +50,80 @@ func (r *Repository) GetBookings(
 
 	return bookings, err
 }
+
+func (r *Repository) GetBusinessBookingStats(businessID uuid.UUID) (total int64, today int64, pending int64, clients int64, err error) {
+	if err = r.db.Model(&models.Booking{}).
+		Where("business_id = ?", businessID).
+		Count(&total).Error; err != nil {
+		return
+	}
+
+	now := time.Now().UTC()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	todayEnd := todayStart.Add(24 * time.Hour)
+	if err = r.db.Model(&models.Booking{}).
+		Where("business_id = ? AND start_time >= ? AND start_time < ?", businessID, todayStart, todayEnd).
+		Count(&today).Error; err != nil {
+		return
+	}
+
+	if err = r.db.Model(&models.Booking{}).
+		Where("business_id = ? AND booking_status = ?", businessID, "pending").
+		Count(&pending).Error; err != nil {
+		return
+	}
+
+	if err = r.db.Model(&models.Booking{}).
+		Where("business_id = ?", businessID).
+		Distinct("customer_email").
+		Count(&clients).Error; err != nil {
+		return
+	}
+
+	return
+}
+
+func (r *Repository) ListBusinessBookings(businessID uuid.UUID, params ListBookingsParams) ([]models.Booking, int64, error) {
+	var bookings []models.Booking
+	var total int64
+
+	query := r.db.Model(&models.Booking{}).Where("business_id = ?", businessID)
+
+	if params.Search != "" {
+		like := "%" + params.Search + "%"
+		query = query.Where(
+			"customer_name ILIKE ? OR customer_email ILIKE ? OR customer_phone ILIKE ?",
+			like, like, like,
+		)
+	}
+
+	// Add date range filter
+	if params.StartDate != "" {
+		startTime, err := time.Parse("2006-01-02", params.StartDate)
+		if err == nil {
+			query = query.Where("start_time >= ?", startTime)
+		}
+	}
+
+	if params.EndDate != "" {
+		endTime, err := time.Parse("2006-01-02", params.EndDate)
+		if err == nil {
+			// Add 24 hours to include the entire end date
+			endTime = endTime.Add(24 * time.Hour)
+			query = query.Where("start_time < ?", endTime)
+		}
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (params.Page - 1) * params.PageSize
+	err := query.
+		Order("start_time DESC").
+		Limit(params.PageSize).
+		Offset(offset).
+		Find(&bookings).Error
+
+	return bookings, total, err
+}

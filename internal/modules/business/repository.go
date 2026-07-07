@@ -29,26 +29,44 @@ func (r *Repository) GetBusinessByID(id uuid.UUID) (*models.Business, error) {
 
 func (r *Repository) GetBusinessByUserID(id uuid.UUID) (*models.Business, error) {
 	var business models.Business
-	err := r.db.Where("owner_id = ?", id).First(&business).Error
+	err := r.db.Preload("Owner", func(db *gorm.DB) *gorm.DB {
+		return db.Omit("password")
+	}).Where("owner_id = ?", id).First(&business).Error
 	if err != nil {
 		return nil, err
 	}
 	return &business, nil
 }
 
+func (r *Repository) UpdateBusinessDetails(
+	businessID uuid.UUID,
+	name string,
+	timezone string,
+) error {
+	return r.db.Model(&models.Business{}).
+		Where("id = ?", businessID).
+		Updates(map[string]any{
+			"name":     name,
+			"timezone": timezone,
+		}).Error
+}
+
 func (r *Repository) UpdateBusinessBankDetails(
 	businessID uuid.UUID,
-	accountNumber string,
-	transferRecipient string,
-	bankName string,
+	accountName,
+	accountNumber,
+	subaccountCode,
+	bankName,
 	bankCode string,
 ) error {
 	return r.db.Model(&models.Business{}).
 		Where("id = ?", businessID).
 		Updates(map[string]any{
+			"account_name":       accountName,
 			"account_number":     accountNumber,
 			"bank_name":          bankName,
-			"transfer_recipient": transferRecipient,
 			"bank_code":          bankCode,
+			"subaccount_code":    subaccountCode,
 		}).Error
 }
+

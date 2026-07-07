@@ -116,6 +116,50 @@ func (h *Handler) ListServices(c *gin.Context) {
 	c.JSON(http.StatusOK, utils.SuccessResponse("Services retrieved successfully", res))
 }
 
+func (h *Handler) ListPublicServices(c *gin.Context) {
+	businessIDParam := c.Param("businessId")
+	if businessIDParam == "" {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("business id is required"))
+		return
+	}
+
+	businessID, err := uuid.Parse(businessIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid business id"))
+		return
+	}
+
+	services, err := h.service.ListServices(businessID)
+	if err != nil {
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, utils.ErrorResponse("business not found"))
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch services"))
+			return
+		}
+	}
+
+	res := make([]ServiceResponse, 0, len(services))
+	for _, s := range services {
+		if !s.IsActive {
+			continue
+		}
+		res = append(res, ServiceResponse{
+			ID:          s.ID,
+			Name:        s.Name,
+			Duration:    s.Duration,
+			Description: s.Description,
+			IsActive:    s.IsActive,
+			Price:       s.Price,
+			BusinessID:  s.BusinessID,
+		})
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("Services retrieved successfully", res))
+}
+
 func (h *Handler) UpdateService(c *gin.Context) {
 	var req UpdateServiceRequest
 

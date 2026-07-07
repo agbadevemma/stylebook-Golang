@@ -14,21 +14,19 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/ledger"
-	"github.com/stylebookgo/agbadevemma/internal/modules/withdrawal"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo             *Repository
-	provider         *Provider
-	business         business.BusinessWriter
-	ledgerWriter     ledger.LedgerWriter
-	withdrawalWriter withdrawal.WithdrawalWriter
+	repo         *Repository
+	provider     *Provider
+	business     business.BusinessWriter
+	ledgerWriter ledger.LedgerWriter
 }
 
-func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.LedgerWriter, business business.BusinessWriter, withdrawalWriter withdrawal.WithdrawalWriter) *Service {
-	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter, business: business, withdrawalWriter: withdrawalWriter}
+func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.LedgerWriter, business business.BusinessWriter) *Service {
+	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter, business: business}
 }
 
 func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (string, error) {
@@ -51,7 +49,7 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 	}
 
 	platformFee, netAmount, totalAmount := funct.CalculateFee(serviceAmount)
-	// log.Printf("platformFee: %v, netAmount: %v, totalAmount: %v", platformFee, netAmount, totalAmount)
+	log.Printf("platformFee: %v, netAmount: %v, totalAmount: %v", platformFee, netAmount, totalAmount)
 
 	ref := uuid.NewString()
 
@@ -74,11 +72,27 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 		return "", errors.New("failed to create payment record")
 	}
 
-	res, err := s.provider.InitializePayment(
+	business, err := s.business.GetBusinessByID(booking.BusinessID)
+	if err != nil {
+		tx.Rollback()
+		return "", errors.New("failed to get business details")
+	}
+
+	if business.SubaccountCode == "" {
+		tx.Rollback()
+		return "", errors.New("business does not have a subaccount code")
+	}
+
+	var res *PaystackResponse
+
+	res, err = s.provider.InitializePaymentWithSplit(
 		payment.Email,
 		payment.Amount,
 		payment.Reference,
+		business.SubaccountCode,
+		platformFee,
 	)
+
 	if err != nil {
 		tx.Rollback()
 		return "", errors.New("failed to initialize paystack payment")
@@ -93,6 +107,34 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 	}
 
 	return res.Data.AuthorizationURL, nil
+}
+
+func (s *Service) CreateBusinessSubaccount(businessID uuid.UUID, req CreateSubaccount) (string, error) {
+	business, err := s.business.GetBusinessByID(businessID)
+	if err != nil {
+		return "", errors.New("failed to get business details")
+	}
+
+	var res *CreateSubaccountResponse
+	if business.SubaccountCode != "" {
+		res, err = s.provider.UpdateSubaccount(business.SubaccountCode, business.Name, req.BankCode, req.AccountNumber)
+		if err != nil {
+			return "", err
+		}
+
+	} else {
+
+		res, err = s.provider.CreateSubaccount(business.Name, req.BankCode, req.AccountNumber)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if err := s.business.UpdateBusinessBankDetails(businessID, req.AccountName, req.AccountNumber, res.Data.SubaccountCode, req.BankName, req.BankCode); err != nil {
+		return "", errors.New("failed to save subaccount code")
+	}
+
+	return res.Data.SubaccountCode, nil
 }
 
 func (s *Service) VerifySignature(payload []byte, signature string) bool {
@@ -115,7 +157,7 @@ func (s *Service) HandleEvent(event utils.PaystackWebhookEvent) error {
 
 	// 💸 TRANSFER EVENTS
 	case "transfer.success", "transfer.failed", "transfer.reversed":
-		return s.withdrawalWriter.HandleTransferEvent(event)
+		return nil
 
 	default:
 		// ignore unknown events safely
@@ -170,7 +212,37 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 		return nil
 	}
 
-	now := time.Now()
+	exists, err := s.ledgerWriter.LedgerExistsByReference(
+		tx,
+		payment.Reference,
+		utils.LedgerCredit,
+	)
+	if !exists {
+		ledger := &models.Ledger{
+			ID:          uuid.New(),
+			BusinessID:  payment.BusinessID,
+			NetAmount:   payment.NetAmount,
+			PlatformFee: payment.PlatformFee,
+			TotalAmount: payment.Amount,
+			Type:        utils.LedgerCredit,
+			Reference:   payment.Reference,
+			Reason:      "Payment successful",
+			CreatedAt:   time.Now().UTC(),
+		}
+
+		if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
+			tx.Rollback()
+			return err
+		}
+
+	}
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	now := time.Now().UTC()
 
 	payment.Status = utils.PaymentSuccess
 	payment.IsVerified = true
@@ -210,6 +282,7 @@ func (s *Service) handlePaymentFailed(tx *gorm.DB, payment *models.Payment) erro
 
 	return tx.Commit().Error
 }
+
 func (s *Service) handlePaymentAbandoned(tx *gorm.DB, payment *models.Payment) error {
 
 	if payment.Status == utils.PaymentSuccess {
@@ -241,50 +314,59 @@ func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) erro
 		return err
 	}
 
-	// optional: reverse ledger entry
+	if err := s.repo.UpdateBookingStatus(
+		tx,
+		payment.BookingID,
+		utils.BookingCancelled,
+		utils.PaymentRefunded,
+	); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	exists, err := s.ledgerWriter.LedgerExistsByReference(
+		tx,
+		payment.Reference+"-refund",
+		utils.LedgerDebit,
+	)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	if !exists {
+		ledger := &models.Ledger{
+			ID:          uuid.New(),
+			BusinessID:  payment.BusinessID,
+			NetAmount:   payment.NetAmount,
+			PlatformFee: payment.PlatformFee,
+			TotalAmount: payment.Amount,
+			Type:        utils.LedgerDebit,
+			Reference:   payment.Reference + "-refund",
+			Reason:      "Payment refunded",
+			CreatedAt:   time.Now().UTC(),
+		}
+
+		if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
+			tx.Rollback()
+			return err
+		}
+
+	}
 	return tx.Commit().Error
 }
 
 func (s *Service) GetBusinessTransactions(
 	businessID uuid.UUID,
-	limit int,
-	offset int,
+	params ListTransactionsParams,
 ) ([]models.Payment, int64, error) {
 
-	return s.repo.GetPaymentsByBusiness(businessID, limit, offset)
+	return s.repo.GetPaymentsByBusiness(businessID, params)
 }
 
 func (s *Service) ResolveBankAccount(accountNumber, bankCode string) (*BankResolveResponse, error) {
 	return s.provider.ResolveBankAccount(accountNumber, bankCode)
 }
 
-func (s *Service) CreateTransferRecipient(
-	name,
-	accountNumber,
-	bankName,
-	bankCode string,
-	businessID uuid.UUID,
-) (*CreateRecipientResponse, error) {
-
-	_, err := s.business.GetBusinessByID(businessID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := s.provider.CreateTransferRecipient(
-		name,
-		accountNumber,
-		bankCode,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.business.UpdateBusinessBankDetails(businessID, accountNumber, res.Data.RecipientCode, bankName, bankCode)
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
+func (s *Service) GetBanks() ([]Bank, error) {
+	return s.provider.GetBanks()
 }

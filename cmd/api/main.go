@@ -16,9 +16,9 @@ func main() {
 	config.LoadEnv()
 	database := db.Connect()
 
-	// db.Migrate(database)
-	// if os.Getenv("RUN_MIGRATIONS") == "true" {
-	// }
+	if os.Getenv("RUN_MIGRATIONS") == "true" {
+		db.Migrate(database)
+	}
 
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -38,6 +38,13 @@ func main() {
 		MaxAge: 12 * time.Hour,
 	}))
 
+	r.GET("/api/v1/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status":  "ok",
+			"message": "Stylebook API is running",
+			"time":    time.Now(),
+		})
+	})
 	routes.SetupRoutes(r, database.DB)
 	port := fmt.Sprintf(":%s", os.Getenv("PORT"))
 	r.Run(port) // listen and serve on

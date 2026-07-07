@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -73,33 +74,72 @@ func (h *Handler) GetBusinessTransactions(c *gin.Context) {
 		return
 	}
 
-	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid limit"))
-		return
+	page := 1
+	pageSize := 10
+	search := c.Query("search")
+	startDate := c.Query("startDate")  // YYYY-MM-DD
+	endDate := c.Query("endDate")      // YYYY-MM-DD
+
+	if p := c.Query("page"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+			page = v
+		}
 	}
-	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid offset"))
-		return
+	if ps := c.Query("pageSize"); ps != "" {
+		if v, err := strconv.Atoi(ps); err == nil && v > 0 && v <= 100 {
+			pageSize = v
+		}
 	}
 
-	data, total, err := h.service.GetBusinessTransactions(businessID, limit, offset)
+	params := ListTransactionsParams{
+		Page:      page,
+		PageSize:  pageSize,
+		Search:    search,
+		StartDate: startDate,
+		EndDate:   endDate,
+	}
+
+	data, total, err := h.service.GetBusinessTransactions(businessID, params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch transactions"))
 		return
 	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("Fetched transaction successfully", TransactionResponse{Result: data, Pagination: utils.Pagination{
-		Total:  total,
-		Limit:  limit,
-		Offset: offset,
-	}}))
+	result := make([]BusinessTransactionResponse, 0, len(data))
+	for _, payment := range data {
+		var paidAt *string
+		if payment.PaidAt != nil {
+			formatted := payment.PaidAt.Format(time.RFC3339)
+			paidAt = &formatted
+		}
+
+		result = append(result, BusinessTransactionResponse{
+			ID:            payment.ID.String(),
+			Reference:     payment.Reference,
+			CustomerName:  payment.Name,
+			CustomerEmail: payment.Email,
+			Amount:        payment.Amount,
+			ServiceAmount: payment.ServiceAmount,
+			PlatformFee:   payment.PlatformFee,
+			NetAmount:     payment.NetAmount,
+			Currency:      payment.Currency,
+			Status:        string(payment.Status),
+			PaidAt:        paidAt,
+			CreatedAt:     payment.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("Fetched transaction successfully", PaginatedTransactionsResponse{
+		Data:     result,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}))
 }
 
 func (h *Handler) ResolveBankAccount(c *gin.Context) {
-	accountNumber := c.Query("account_number")
-	bankCode := c.Query("bank_code")
+	accountNumber := c.Query("accountNumber")
+	bankCode := c.Query("bankCode")
 
 	if accountNumber == "" || bankCode == "" {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("missing query params"))
@@ -118,7 +158,17 @@ func (h *Handler) ResolveBankAccount(c *gin.Context) {
 	}))
 }
 
-func (h *Handler) CreateTransferRecipient(c *gin.Context) {
+func (h *Handler) GetBanks(c *gin.Context) {
+	banks, err := h.service.GetBanks()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch banks: "+err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("banks fetched successfully", banks))
+}
+
+func (h *Handler) CreateSubAccount(c *gin.Context) {
 	busID, ok := c.Get("businessId")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("missing business id"))
@@ -130,26 +180,20 @@ func (h *Handler) CreateTransferRecipient(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid business id"))
 		return
 	}
-	var req CreateTransferRecipientRequest
+	var req CreateSubaccount
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ValidationError(c, err)
 		return
 	}
 
-	res, err := h.service.CreateTransferRecipient(
-		req.Name,
-		req.AccountNumber,
-		req.BankName,
-		req.BankCode,
-		businessID,
-	)
+	subaccountCode, err := h.service.CreateBusinessSubaccount(businessID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("recipient created", gin.H{
-		"recipientCode": res.Data.RecipientCode,
+	c.JSON(http.StatusOK, utils.SuccessResponse("subaccount created successfully", gin.H{
+		"subaccountCode": subaccountCode,
 	}))
 }

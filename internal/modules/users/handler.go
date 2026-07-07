@@ -1,6 +1,7 @@
 package users
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -23,7 +24,7 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
-	if req.Role != utils.Admin && req.Role != utils.Barber {
+	if req.Role != utils.Business && req.Role != utils.Barber {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid role"))
 		return
 	}
@@ -44,12 +45,54 @@ func (h *Handler) Login(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	token, err := h.service.Login(&req)
+	token, business, err := h.service.Login(&req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, utils.SuccessResponse("Login Successfully", token))
+	c.JSON(http.StatusOK, utils.SuccessResponse("Login Successfully", map[string]any{
+		"token":    token,
+		"business": business,
+	}))
 
+}
+
+func (h *Handler) ChangePassword(c *gin.Context) {
+	var req ChangePasswordRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	err := h.service.ChangePassword(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse(
+		"Password Changed successfully",
+		nil,
+	))
+}
+
+func (h *Handler) VerifyOTP(c *gin.Context) {
+	var req VerifyOTPRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	err := h.service.VerifyOTP(&req)
+
+	if err != nil {
+		log.Printf("Error -->> %v", err.Error())
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("An error  occured"))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("OTP verified successfully", nil))
 }

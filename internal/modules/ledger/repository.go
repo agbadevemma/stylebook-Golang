@@ -1,7 +1,6 @@
 package ledger
 
 import (
-	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"gorm.io/gorm"
@@ -16,18 +15,8 @@ func NewRepository(db *gorm.DB) *Repository {
 }
 
 func (r *Repository) CreateLedger(tx *gorm.DB, ledger *models.Ledger) error {
+
 	return tx.Create(ledger).Error
-}
-
-func (r *Repository) GetBusinessBalance(businessID uuid.UUID) (int64, error) {
-	var balance int64
-
-	err := r.db.Model(&models.Ledger{}).
-		Select("COALESCE(SUM(CASE WHEN type = ? THEN amount ELSE -amount END), 0)", utils.LedgerCredit).
-		Where("business_id = ?", businessID).
-		Scan(&balance).Error
-
-	return balance, err
 }
 
 func (r *Repository) LedgerExistsByReference(

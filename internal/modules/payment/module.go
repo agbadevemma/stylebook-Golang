@@ -22,13 +22,14 @@ func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	{
 
 		payment.POST("/webhook", m.handler.PaymentWebhook)
-		payment.GET("/history", middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Admin), m.handler.GetBusinessTransactions)
-		payment.GET("/bank/resolve", middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Admin), m.handler.ResolveBankAccount)
+		payment.GET("/history", middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business), m.handler.GetBusinessTransactions)
+		payment.GET("/bank/resolve", middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business), m.handler.ResolveBankAccount)
+		payment.GET("/banks", middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business), m.handler.GetBanks)
 		payment.POST(
-			"/recipient",
+			"/subaccount",
 			middleware.JWTAuthMiddleware(),
-			middleware.RoleMiddleware(utils.Admin),
-			m.handler.CreateTransferRecipient,
+			middleware.RoleMiddleware(utils.Business),
+			m.handler.CreateSubAccount,
 		)
 	}
 

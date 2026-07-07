@@ -75,3 +75,22 @@ func (r *Repository) GetBlockedTimes(
 
 	return blocks, err
 }
+
+func (r *Repository) HasOverlappingBlockedTime(
+	businessID uuid.UUID,
+	start, end time.Time,
+) (bool, error) {
+
+	var count int64
+
+	err := r.db.Model(&models.BlockedTime{}).
+		Where("business_id = ?", businessID).
+		Where("start_time < ? AND end_time > ?", end, start).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
