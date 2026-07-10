@@ -58,3 +58,7 @@ type ListBookingsParams struct {
 type RescheduleBookingRequest struct {
 	NewStartTime time.Time `json:"newStartTime" binding:"required"`
 }
+
+type UpdateBookingStatusRequest struct {
+	Status string `json:"status" binding:"required"`
+}
