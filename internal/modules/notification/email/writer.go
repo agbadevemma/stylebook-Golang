@@ -4,4 +4,5 @@ type EmailWriter interface {
 	SendOTP(email string, otp string) error
 	SendPasswordReset(email string, otp string) error
 	SendBookingConfirmation(email string, data BookingConfirmationData) error
+	SendAccountVerified(email string, data AccountVerifiedData) error
 }

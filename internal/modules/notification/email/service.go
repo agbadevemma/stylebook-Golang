@@ -7,6 +7,8 @@ import (
 	"github.com/resend/resend-go/v3"
 )
 
+const LOGO_URL = "https://res.cloudinary.com/dmpqdaupc/image/upload/v1783708651/logo_bpq0td.png"
+
 type Service struct {
 	client *resend.Client
 	from   string
@@ -20,6 +22,12 @@ type BookingConfirmationData struct {
 	TotalAmount     string
 	BookingID       string
 	CallbackURL     string
+}
+
+type AccountVerifiedData struct {
+	CustomerName  string
+	CustomerEmail string
+	LoginURL      string
 }
 
 func NewEmailService() *Service {
@@ -44,9 +52,10 @@ func (s *Service) SendOTP(email string, otp string) error {
 				<tr>
 					<td align="center" style="padding: 40px 20px;">
 						<table width="100%%" max-width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-							<!-- Header -->
+							<!-- Logo Header -->
 							<tr>
-								<td style="background-color: #000000; padding: 40px 30px; text-align: center; border-radius: 8px 8px 0 0;">
+								<td style="background-color: #000000; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+									<img src="%s" alt="Logo" style="height: 50px; margin-bottom: 20px;">
 									<h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Email Verification</h1>
 								</td>
 							</tr>
@@ -75,7 +84,7 @@ func (s *Service) SendOTP(email string, otp string) error {
 									</div>
 
 									<p style="margin: 30px 0 0 0; color: #999999; font-size: 13px;">
-										If you didn't request this code, please ignore this email or <a href="mailto:hello@ductdigitals.com" style="color: #000000; text-decoration: underline;">contact support</a>.
+										If you didn't request this code, please ignore this email or <a href="mailto:support@yourdomain.com" style="color: #000000; text-decoration: underline;">contact support</a>.
 									</p>
 								</td>
 							</tr>
@@ -94,7 +103,7 @@ func (s *Service) SendOTP(email string, otp string) error {
 			</table>
 		</body>
 		</html>
-	`, otp)
+	`, LOGO_URL, otp)
 
 	_, err := s.client.Emails.Send(&resend.SendEmailRequest{
 		From:    s.from,
@@ -121,9 +130,10 @@ func (s *Service) SendPasswordReset(email string, otp string) error {
 				<tr>
 					<td align="center" style="padding: 40px 20px;">
 						<table width="100%%" max-width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-							<!-- Header -->
+							<!-- Logo Header -->
 							<tr>
-								<td style="background-color: #000000; padding: 40px 30px; text-align: center; border-radius: 8px 8px 0 0;">
+								<td style="background-color: #000000; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+									<img src="%s" alt="Logo" style="height: 50px; margin-bottom: 20px;">
 									<h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Password Reset Request</h1>
 								</td>
 							</tr>
@@ -158,12 +168,12 @@ func (s *Service) SendPasswordReset(email string, otp string) error {
 
 									<div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 15px 20px; border-radius: 4px; margin: 30px 0;">
 										<p style="margin: 0; color: #721c24; font-size: 14px;">
-											<strong>Security Alert:</strong> If you didn't request this, someone may be trying to access your account. Change your password immediately and <a href="mailto:hello@ductdigitals.com" style="color: #721c24; text-decoration: underline; font-weight: bold;">contact support</a>.
+											<strong>Security Alert:</strong> If you didn't request this, someone may be trying to access your account. Change your password immediately and <a href="mailto:support@yourdomain.com" style="color: #721c24; text-decoration: underline; font-weight: bold;">contact support</a>.
 										</p>
 									</div>
 
 									<p style="margin: 20px 0 0 0; color: #999999; font-size: 13px;">
-										Questions? <a href="mailto:hello@ductdigitals.com" style="color: #000000; text-decoration: underline;">Get help from our support team</a>
+										Questions? <a href="mailto:support@yourdomain.com" style="color: #000000; text-decoration: underline;">Get help from our support team</a>
 									</p>
 								</td>
 							</tr>
@@ -182,7 +192,7 @@ func (s *Service) SendPasswordReset(email string, otp string) error {
 			</table>
 		</body>
 		</html>
-	`, otp)
+	`, LOGO_URL, otp)
 
 	_, err := s.client.Emails.Send(&resend.SendEmailRequest{
 		From:    s.from,
@@ -209,10 +219,11 @@ func (s *Service) SendBookingConfirmation(email string, data BookingConfirmation
 				<tr>
 					<td align="center" style="padding: 40px 20px;">
 						<table width="100%%" max-width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
-							<!-- Success Header -->
+							<!-- Logo Header -->
 							<tr>
-								<td style="background-color: #000000; padding: 50px 30px; text-align: center;">
-									<div style="font-size: 48px; margin-bottom: 20px;">✓</div>
+								<td style="background-color: #000000; padding: 30px; text-align: center;">
+									<img src="%s" alt="Logo" style="height: 50px; margin-bottom: 20px;">
+									<div style="font-size: 48px; margin-bottom: 15px;">✓</div>
 									<h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700;">Booking Confirmed!</h1>
 									<p style="margin: 10px 0 0 0; color: #cccccc; font-size: 16px;">Your payment has been received</p>
 								</td>
@@ -306,6 +317,7 @@ func (s *Service) SendBookingConfirmation(email string, data BookingConfirmation
 		</body>
 		</html>
 	`,
+		LOGO_URL,
 		data.CustomerName,
 		data.BusinessName,
 		data.AppointmentTime,
@@ -314,6 +326,114 @@ func (s *Service) SendBookingConfirmation(email string, data BookingConfirmation
 		data.BookingID,
 		data.CallbackURL,
 		data.BusinessName,
+	)
+
+	_, err := s.client.Emails.Send(&resend.SendEmailRequest{
+		From:    s.from,
+		To:      []string{email},
+		Subject: subject,
+		Html:    html,
+	})
+
+	return err
+}
+
+func (s *Service) SendAccountVerified(email string, data AccountVerifiedData) error {
+	subject := "✓ Your Account is Verified - Welcome!"
+
+	html := fmt.Sprintf(`
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		</head>
+		<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f5f5f5;">
+			<table width="100%%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+				<tr>
+					<td align="center" style="padding: 40px 20px;">
+						<table width="100%%" max-width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+							<!-- Logo Header -->
+							<tr>
+								<td style="background-color: #000000; padding: 30px; text-align: center;">
+									<img src="%s" alt="Logo" style="height: 50px; margin-bottom: 20px;">
+									<div style="font-size: 48px; margin-bottom: 15px;">✓</div>
+									<h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700;">Email Verified!</h1>
+									<p style="margin: 10px 0 0 0; color: #cccccc; font-size: 16px;">Your account is ready to use</p>
+								</td>
+							</tr>
+
+							<!-- Main Content -->
+							<tr>
+								<td style="padding: 40px 30px;">
+									<p style="margin: 0 0 30px 0; color: #333333; font-size: 16px; line-height: 1.6;">
+										Welcome <strong>%s</strong>! 👋<br>
+										Your email address has been verified and your account is now fully activated. You're all set to start booking appointments.
+									</p>
+
+									<!-- What You Can Do -->
+									<div style="background-color: #f9f9f9; border: 1px solid #eeeeee; border-radius: 8px; padding: 0; overflow: hidden; margin: 30px 0;">
+										<!-- Booking -->
+										<div style="border-bottom: 1px solid #eeeeee; padding: 25px 30px;">
+											<p style="margin: 0 0 8px 0; color: #000000; font-size: 14px; font-weight: 600;">📅 Book Your Appointment</p>
+											<p style="margin: 0; color: #666666; font-size: 13px;">Browse available barbers and services, then book the perfect time for you.</p>
+										</div>
+
+										<!-- Manage -->
+										<div style="border-bottom: 1px solid #eeeeee; padding: 25px 30px;">
+											<p style="margin: 0 0 8px 0; color: #000000; font-size: 14px; font-weight: 600;">⚙️ Manage Your Bookings</p>
+											<p style="margin: 0; color: #666666; font-size: 13px;">View, reschedule, or cancel your bookings from your account dashboard.</p>
+										</div>
+
+										<!-- Notifications -->
+										<div style="padding: 25px 30px;">
+											<p style="margin: 0 0 8px 0; color: #000000; font-size: 14px; font-weight: 600;">🔔 Get Reminders</p>
+											<p style="margin: 0; color: #666666; font-size: 13px;">We'll send you reminders before your appointments so you never miss one.</p>
+										</div>
+									</div>
+
+									<!-- CTA Button -->
+									<div style="text-align: center; margin: 40px 0;">
+										<a href="%s" style="background-color: #000000; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 15px;">
+											Start Booking Now
+										</a>
+									</div>
+
+									<!-- Account Security -->
+									<div style="background-color: #f9f9f9; border: 1px solid #eeeeee; border-radius: 8px; padding: 25px 30px; margin: 30px 0;">
+										<p style="margin: 0 0 15px 0; color: #000000; font-size: 14px; font-weight: 600;">🔒 Account Security Tips</p>
+										<ul style="margin: 0; padding-left: 20px; color: #666666; font-size: 13px; line-height: 1.8;">
+											<li style="margin-bottom: 8px;">Keep your password safe and never share it with anyone</li>
+											<li style="margin-bottom: 8px;">Verify official emails come from our domain</li>
+											<li>Report any suspicious activity to us immediately</li>
+										</ul>
+									</div>
+
+									<!-- Support -->
+									<p style="margin: 20px 0 0 0; color: #999999; font-size: 13px;">
+										Need help? <a href="mailto:support@yourdomain.com" style="color: #000000; text-decoration: underline;">Contact our support team</a>
+									</p>
+								</td>
+							</tr>
+
+							<!-- Footer -->
+							<tr>
+								<td style="background-color: #f9f9f9; padding: 30px; text-align: center; border-top: 1px solid #eeeeee;">
+									<p style="margin: 0; color: #999999; font-size: 12px;">
+										This is an automated confirmation email. Please do not reply to this message.
+									</p>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+		</body>
+		</html>
+	`,
+		LOGO_URL,
+		data.CustomerName,
+		data.LoginURL,
 	)
 
 	_, err := s.client.Emails.Send(&resend.SendEmailRequest{
