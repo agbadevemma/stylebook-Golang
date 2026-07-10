@@ -417,3 +417,72 @@ func (s *Service) RescheduleBooking(bookingID uuid.UUID, businessID uuid.UUID, r
 
 	return tx.Commit().Error
 }
+
+func (s *Service) UpdateBookingStatus(bookingID uuid.UUID, businessID uuid.UUID, status string) error {
+	// Validate status is one of the allowed values
+	validStatuses := map[string]bool{
+		string(utils.BookingPending):   true,
+		string(utils.BookingConfirmed): true,
+		string(utils.BookingCancelled): true,
+		string(utils.BookingCompleted): true,
+	}
+
+	if !validStatuses[status] {
+		return errors.New("invalid booking status: " + status)
+	}
+
+	// Get the booking with locking
+	tx := s.repo.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var booking models.Booking
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&booking, bookingID).Error; err != nil {
+		tx.Rollback()
+		return errors.New("booking not found")
+	}
+
+	// Verify booking belongs to the business
+	if booking.BusinessID != businessID {
+		tx.Rollback()
+		return errors.New("booking does not belong to this business")
+	}
+
+	// Update the status
+	booking.BookingStatus = utils.BookingStatus(status)
+
+	if err := s.repo.UpdateBooking(tx, &booking); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
+func (s *Service) GetBookingDetailsPublic(bookingID uuid.UUID) (*models.Booking, []models.BookingService, *models.Business, error) {
+	booking, err := s.repo.GetBookingByID(bookingID)
+	if err != nil {
+		return nil, nil, nil, errors.New("booking not found")
+	}
+
+	// Get booking services
+	services, err := s.bookingserviceWriter.GetBookingServicesByBookingID(s.repo.db, bookingID)
+	if err != nil {
+		return nil, nil, nil, errors.New("failed to fetch booking services")
+	}
+
+	// Get business details
+	business, err := s.businessWriter.GetBusinessByID(booking.BusinessID)
+	if err != nil {
+		return nil, nil, nil, errors.New("failed to fetch business details")
+	}
+
+	return booking, services, business, nil
+}

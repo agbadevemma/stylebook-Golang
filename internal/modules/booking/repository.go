@@ -53,7 +53,7 @@ func (r *Repository) GetBookings(
 
 func (r *Repository) GetBusinessBookingStats(businessID uuid.UUID) (total int64, today int64, pending int64, clients int64, err error) {
 	if err = r.db.Model(&models.Booking{}).
-		Where("business_id = ?", businessID).
+		Where("business_id = ? AND booking_status != ?", businessID, "completed").
 		Count(&total).Error; err != nil {
 		return
 	}
@@ -62,7 +62,7 @@ func (r *Repository) GetBusinessBookingStats(businessID uuid.UUID) (total int64,
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	todayEnd := todayStart.Add(24 * time.Hour)
 	if err = r.db.Model(&models.Booking{}).
-		Where("business_id = ? AND start_time >= ? AND start_time < ?", businessID, todayStart, todayEnd).
+		Where("business_id = ? AND start_time >= ? AND start_time < ? AND booking_status != ?", businessID, todayStart, todayEnd, "completed").
 		Count(&today).Error; err != nil {
 		return
 	}
@@ -74,7 +74,7 @@ func (r *Repository) GetBusinessBookingStats(businessID uuid.UUID) (total int64,
 	}
 
 	if err = r.db.Model(&models.Booking{}).
-		Where("business_id = ?", businessID).
+		Where("business_id = ? AND booking_status != ?", businessID, "completed").
 		Distinct("customer_email").
 		Count(&clients).Error; err != nil {
 		return
@@ -87,7 +87,7 @@ func (r *Repository) ListBusinessBookings(businessID uuid.UUID, params ListBooki
 	var bookings []models.Booking
 	var total int64
 
-	query := r.db.Model(&models.Booking{}).Where("business_id = ?", businessID)
+	query := r.db.Model(&models.Booking{}).Where("business_id = ? AND booking_status != ?", businessID, "completed")
 
 	if params.Search != "" {
 		like := "%" + params.Search + "%"
