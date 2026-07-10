@@ -54,3 +54,7 @@ type ListBookingsParams struct {
 	StartDate string // YYYY-MM-DD
 	EndDate   string // YYYY-MM-DD
 }
+
+type RescheduleBookingRequest struct {
+	NewStartTime time.Time `json:"newStartTime" binding:"required"`
+}

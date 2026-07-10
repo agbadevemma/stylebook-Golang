@@ -38,4 +38,5 @@ func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	businessBooking.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business))
 	businessBooking.GET("/list", m.handler.ListBusinessBookings)
 	businessBooking.GET("/stats", m.handler.GetBusinessStats)
+	businessBooking.PUT("/:bookingId/reschedule", m.handler.RescheduleBooking)
 }

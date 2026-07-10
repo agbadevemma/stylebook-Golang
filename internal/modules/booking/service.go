@@ -14,6 +14,8 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
 	"github.com/stylebookgo/agbadevemma/internal/modules/payment"
 	"github.com/stylebookgo/agbadevemma/internal/modules/service"
+	"github.com/stylebookgo/agbadevemma/internal/utils"
+    "gorm.io/gorm/clause"
 )
 
 type Service struct {
@@ -77,7 +79,6 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 		return BookingResponse{}, errors.New("business has not completed payment setup. Please add bank details")
 	}
 
-
 	startTimeUTC := req.StartTime
 	endTimeUTC := startTimeUTC.Add(
 		time.Duration(totalDuration) * time.Minute,
@@ -122,19 +123,14 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 		return BookingResponse{}, errors.New("invalid business end time format")
 	}
 
-	// Convert business hours back to UTC for comparison
-	startHourUTC := startHourLocal.UTC()
-	endHourUTC := endHourLocal.UTC()
+	// Get booking times in business timezone
+	startTimeLocal := startTimeUTC.In(loc)
+	endTimeLocal := endTimeUTC.In(loc)
 
-	// Validate booking is within business hours
-	if startTimeUTC.Before(startHourUTC) || startTimeUTC.After(endHourUTC) {
+	// Check if booking is within business hours (handles midnight crossing)
+	if !utils.IsTimeWithinBusinessHours(startTimeLocal, endTimeLocal, startHourLocal, endHourLocal) {
 		tx.Rollback()
-		return BookingResponse{}, errors.New("booking start time is outside business hours")
-	}
-
-	if endTimeUTC.After(endHourUTC) {
-		tx.Rollback()
-		return BookingResponse{}, errors.New("booking end time extends beyond business hours")
+		return BookingResponse{}, errors.New("booking time is outside business hours")
 	}
 
 	// ================================
@@ -272,4 +268,152 @@ func (s *Service) ListBusinessBookings(businessID uuid.UUID, params ListBookings
 	}
 
 	return s.repo.ListBusinessBookings(businessID, params)
+}
+
+func (s *Service) RescheduleBooking(bookingID uuid.UUID, businessID uuid.UUID, req *RescheduleBookingRequest) error {
+	// Validate startTime is in UTC
+	if err := utils.ValidateISO8601Timestamp(req.NewStartTime, "newStartTime"); err != nil {
+		return errors.New("invalid start time format: " + err.Error())
+	}
+
+	// ================================
+	// 1. START TRANSACTION WITH LOCKING
+	// ================================
+	tx := s.repo.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// ================================
+	// 2. LOCK BOOKING ROW
+	// ================================
+	var booking models.Booking
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&booking, bookingID).Error; err != nil {
+		tx.Rollback()
+		return errors.New("booking not found or cannot be locked")
+	}
+
+	// Only paid bookings can be rescheduled
+	if booking.PaymentStatus != utils.PaymentSuccess {
+		tx.Rollback()
+		return errors.New("only paid bookings can be rescheduled")
+	}
+
+	// ================================
+	// 3. LOCK BUSINESS ROW
+	// ================================
+	if err := tx.Exec(`
+		SELECT id FROM businesses WHERE id = ? FOR UPDATE
+	`, businessID).Error; err != nil {
+		tx.Rollback()
+		return errors.New("failed to lock business")
+	}
+
+	// ================================
+	// 4. GET BUSINESS DETAILS
+	// ================================
+	business, err := s.businessWriter.GetBusinessByID(businessID)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("business not found")
+	}
+
+	// Calculate new end time based on total duration
+	newEndTimeUTC := req.NewStartTime.Add(time.Duration(booking.TotalDuration) * time.Minute)
+
+	// Load timezone
+	loc, err := time.LoadLocation(business.Timezone)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("invalid business timezone")
+	}
+
+	// Convert UTC booking time to business timezone to determine calendar day
+	bookingLocal := req.NewStartTime.In(loc)
+	dayOfWeek := int(bookingLocal.Weekday())
+
+	// Get business hours for this day of week
+	businessHour, err := s.businessHourWriter.GetBusinessHour(businessID, dayOfWeek)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("business hours not configured for this day")
+	}
+
+	// Parse business hours
+	openTime, err := time.Parse("15:04", businessHour.StartTime)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("invalid business open time format")
+	}
+
+	closeTime, err := time.Parse("15:04", businessHour.EndTime)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("invalid business close time format")
+	}
+
+	// Get start and end times in business timezone
+	bookingStart := req.NewStartTime.In(loc)
+	bookingEnd := newEndTimeUTC.In(loc)
+
+	// Check if booking is within business hours (handles midnight crossing)
+	if !utils.IsTimeWithinBusinessHours(bookingStart, bookingEnd, openTime, closeTime) {
+		tx.Rollback()
+		return errors.New("booking time is outside business hours")
+	}
+
+	// ================================
+	// 5. CHECK FOR BOOKING CONFLICTS WITH LOCKING
+	// ================================
+	var conflicts []models.Booking
+	if err := tx.Raw(`
+		SELECT *
+		FROM bookings
+		WHERE business_id = ?
+		AND id != ?
+		AND start_time < ?
+		AND end_time > ?
+		FOR UPDATE
+	`, businessID, bookingID, newEndTimeUTC, req.NewStartTime).Scan(&conflicts).Error; err != nil {
+		tx.Rollback()
+		return errors.New("failed to check for conflicts")
+	}
+
+	if len(conflicts) > 0 {
+		tx.Rollback()
+		return errors.New("new time slot conflicts with another booking")
+	}
+
+	// ================================
+	// 6. CHECK FOR BLOCKED TIMES
+	// ================================
+	blockedTimes, err := s.blockedTimesWriter.GetBlockedTimes(businessID, req.NewStartTime, newEndTimeUTC)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if len(blockedTimes) > 0 {
+		tx.Rollback()
+		return errors.New("new time slot is blocked")
+	}
+
+	// ================================
+	// 7. UPDATE BOOKING
+	// ================================
+	booking.StartTime = req.NewStartTime
+	booking.EndTime = newEndTimeUTC
+
+	if err := s.repo.UpdateBooking(tx, &booking); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }

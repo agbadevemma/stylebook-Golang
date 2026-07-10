@@ -129,3 +129,45 @@ func (h *Handler) ListBusinessBookings(c *gin.Context) {
 		PageSize: pageSize,
 	}))
 }
+
+func (h *Handler) RescheduleBooking(c *gin.Context) {
+	businessIDValue, exists := c.Get("businessId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("business id not found"))
+		return
+	}
+
+	businessID, ok := businessIDValue.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("invalid business id"))
+		return
+	}
+
+	bookingID := c.Param("bookingId")
+	parsedBookingID, err := uuid.Parse(bookingID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse("invalid booking id"))
+		return
+	}
+
+	var req RescheduleBookingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	// Validate newStartTime is in UTC
+	if err := utils.ValidateISO8601Timestamp(req.NewStartTime, "newStartTime"); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+
+	err = h.service.RescheduleBooking(parsedBookingID, businessID, &req)
+	if err != nil {
+		log.Printf("reschedule error: %v", err.Error())
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessResponse("Booking rescheduled successfully", nil))
+}

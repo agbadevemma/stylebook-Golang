@@ -127,3 +127,7 @@ func (r *Repository) ListBusinessBookings(businessID uuid.UUID, params ListBooki
 
 	return bookings, total, err
 }
+
+func (r *Repository) UpdateBooking(tx *gorm.DB, booking *models.Booking) error {
+	return tx.Model(booking).Updates(booking).Error
+}
