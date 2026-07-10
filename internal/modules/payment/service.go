@@ -5,6 +5,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/ledger"
+	"github.com/stylebookgo/agbadevemma/internal/modules/notification/email"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"gorm.io/gorm"
 )
@@ -23,10 +25,11 @@ type Service struct {
 	provider     *Provider
 	business     business.BusinessWriter
 	ledgerWriter ledger.LedgerWriter
+	emailWriter  email.EmailWriter
 }
 
-func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.LedgerWriter, business business.BusinessWriter) *Service {
-	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter, business: business}
+func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.LedgerWriter, business business.BusinessWriter, emailWriter email.EmailWriter) *Service {
+	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter, business: business, emailWriter: emailWriter}
 }
 
 func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (string, error) {
@@ -264,7 +267,77 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 		return err
 	}
 
-	return tx.Commit().Error
+	// Commit transaction before sending email (email is not critical path)
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	// Send confirmation email asynchronously (don't block if it fails)
+	go func() {
+		booking, err := s.repo.GetBookingByID(payment.BookingID)
+		if err != nil {
+			log.Printf("failed to fetch booking for email: %v", err)
+			return
+		}
+
+		services, err := s.repo.GetBookingServices(payment.BookingID)
+		if err != nil {
+			log.Printf("failed to fetch booking services for email: %v", err)
+			return
+		}
+
+		business, err := s.business.GetBusinessByID(payment.BusinessID)
+		if err != nil {
+			log.Printf("failed to fetch business for email: %v", err)
+			return
+		}
+
+		// Format services list
+		servicesStr := ""
+		for i, svc := range services {
+			if i > 0 {
+				servicesStr += ", "
+			}
+			servicesStr += fmt.Sprintf("%s (%dm)", svc.Name, svc.Duration)
+		}
+
+		// Format appointment time in business timezone
+		loc, err := time.LoadLocation(business.Timezone)
+		if err != nil {
+			loc = time.UTC
+		}
+		appointmentTime := booking.StartTime.In(loc).Format("Mon, Jan 2, 2006 at 3:04 PM")
+
+		// Format amount (convert from kobo to naira with proper formatting)
+		naira := payment.Amount / 100
+		kobo := payment.Amount % 100
+		var totalAmount string
+		if kobo == 0 {
+			totalAmount = fmt.Sprintf("₦%d", naira)
+		} else {
+			totalAmount = fmt.Sprintf("₦%d.%02d", naira, kobo)
+		}
+
+		// Construct callback URL
+		frontendURL := os.Getenv("FRONTEND_URL")
+		callbackURL := fmt.Sprintf("%s/book/success?bookingId=%s&reference=%s", frontendURL, booking.ID, payment.Reference)
+
+		emailData := email.BookingConfirmationData{
+			CustomerName:    payment.Name,
+			BusinessName:    business.Name,
+			AppointmentTime: appointmentTime,
+			Services:        servicesStr,
+			TotalAmount:     totalAmount,
+			BookingID:       booking.ID.String(),
+			CallbackURL:     callbackURL,
+		}
+
+		if err := s.emailWriter.SendBookingConfirmation(payment.Email, emailData); err != nil {
+			log.Printf("failed to send booking confirmation email: %v", err)
+		}
+	}()
+
+	return nil
 }
 
 func (s *Service) handlePaymentFailed(tx *gorm.DB, payment *models.Payment) error {

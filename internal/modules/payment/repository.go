@@ -132,3 +132,19 @@ func (r *Repository) GetPaymentsByBusiness(
 
 	return payments, total, nil
 }
+
+func (r *Repository) GetBookingByID(bookingID uuid.UUID) (*models.Booking, error) {
+	var booking models.Booking
+	if err := r.db.Where("id = ?", bookingID).First(&booking).Error; err != nil {
+		return nil, err
+	}
+	return &booking, nil
+}
+
+func (r *Repository) GetBookingServices(bookingID uuid.UUID) ([]models.BookingService, error) {
+	var services []models.BookingService
+	if err := r.db.Where("booking_id = ?", bookingID).Find(&services).Error; err != nil {
+		return nil, err
+	}
+	return services, nil
+}

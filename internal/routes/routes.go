@@ -33,7 +33,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	otpRepo := otp.NewRepository(db)
 	otpService := otp.NewService(otpRepo, emailService)
 	otp.NewModule(otpService).ModuleRoutes(api)
-	paymentService := payment.NewService(paymentRepo, paymentProvider, ledgerRepo, businessRepo)
+	paymentService := payment.NewService(paymentRepo, paymentProvider, ledgerRepo, businessRepo, emailService)
 	bookingServiceRepo := bookingservice.NewRepository(db)
 
 	users.NewModule(db, businessRepo, businessHourRepo, otpService).ModuleRoutes(api)
