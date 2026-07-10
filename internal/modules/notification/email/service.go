@@ -13,13 +13,13 @@ type Service struct {
 }
 
 type BookingConfirmationData struct {
-	CustomerName  string
-	BusinessName  string
+	CustomerName    string
+	BusinessName    string
 	AppointmentTime string
-	Services      string
-	TotalAmount   string
-	BookingID     string
-	CallbackURL   string
+	Services        string
+	TotalAmount     string
+	BookingID       string
+	CallbackURL     string
 }
 
 func NewEmailService() *Service {
@@ -75,7 +75,7 @@ func (s *Service) SendOTP(email string, otp string) error {
 									</div>
 
 									<p style="margin: 30px 0 0 0; color: #999999; font-size: 13px;">
-										If you didn't request this code, please ignore this email or <a href="mailto:support@yourdomain.com" style="color: #000000; text-decoration: underline;">contact support</a>.
+										If you didn't request this code, please ignore this email or <a href="mailto:hello@ductdigitals.com" style="color: #000000; text-decoration: underline;">contact support</a>.
 									</p>
 								</td>
 							</tr>
@@ -158,12 +158,12 @@ func (s *Service) SendPasswordReset(email string, otp string) error {
 
 									<div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 15px 20px; border-radius: 4px; margin: 30px 0;">
 										<p style="margin: 0; color: #721c24; font-size: 14px;">
-											<strong>Security Alert:</strong> If you didn't request this, someone may be trying to access your account. Change your password immediately and <a href="mailto:support@yourdomain.com" style="color: #721c24; text-decoration: underline; font-weight: bold;">contact support</a>.
+											<strong>Security Alert:</strong> If you didn't request this, someone may be trying to access your account. Change your password immediately and <a href="mailto:hello@ductdigitals.com" style="color: #721c24; text-decoration: underline; font-weight: bold;">contact support</a>.
 										</p>
 									</div>
 
 									<p style="margin: 20px 0 0 0; color: #999999; font-size: 13px;">
-										Questions? <a href="mailto:support@yourdomain.com" style="color: #000000; text-decoration: underline;">Get help from our support team</a>
+										Questions? <a href="mailto:hello@ductdigitals.com" style="color: #000000; text-decoration: underline;">Get help from our support team</a>
 									</p>
 								</td>
 							</tr>
@@ -306,14 +306,14 @@ func (s *Service) SendBookingConfirmation(email string, data BookingConfirmation
 		</body>
 		</html>
 	`,
-	data.CustomerName,
-	data.BusinessName,
-	data.AppointmentTime,
-	data.Services,
-	data.TotalAmount,
-	data.BookingID,
-	data.CallbackURL,
-	data.BusinessName,
+		data.CustomerName,
+		data.BusinessName,
+		data.AppointmentTime,
+		data.Services,
+		data.TotalAmount,
+		data.BookingID,
+		data.CallbackURL,
+		data.BusinessName,
 	)
 
 	_, err := s.client.Emails.Send(&resend.SendEmailRequest{
