@@ -91,6 +91,7 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 		payment.Reference,
 		business.SubaccountCode,
 		platformFee,
+		booking.ID.String(),
 	)
 
 	if err != nil {
