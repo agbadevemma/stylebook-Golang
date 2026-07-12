@@ -193,6 +193,10 @@ func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
 	if err != nil {
 		return err
 	}
+	if user.IsEmailVerified {
+		tx.Rollback()
+		return errors.New("account already verified")
+	}
 	now := time.Now().UTC()
 	user.IsEmailVerified = true
 	user.EmailVerifiedAt = &now
