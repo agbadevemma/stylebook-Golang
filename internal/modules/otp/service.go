@@ -35,7 +35,7 @@ func (s *Service) SendOTP(
 
 		Email:     email,
 		Type:      otpType,
-		CodeHash:  funct.HashOTP(code),
+		CodeHash:  code,
 		ExpiresAt: time.Now().UTC().Add(10 * time.Minute),
 		Used:      false,
 	}
