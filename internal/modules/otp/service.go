@@ -31,8 +31,26 @@ func (s *Service) SendOTP(
 		return err
 	}
 
-	otp := &models.OTP{
+	// Check if an existing OTP record exists for this email and type
+	existingOtp, err := s.repo.FindLatestOTPByEmailAndType(email, otpType)
 
+	// If existing record found, update it
+	if err == nil && existingOtp != nil {
+		existingOtp.CodeHash = funct.HashOTP(code)
+		existingOtp.ExpiresAt = time.Now().UTC().Add(10 * time.Minute)
+		existingOtp.Attempts = 0
+		existingOtp.Used = false
+		existingOtp.VerifiedAt = nil
+
+		if err := s.repo.Update(tx, existingOtp); err != nil {
+			return err
+		}
+
+		return s.emailService.SendOTP(email, code)
+	}
+
+	// Otherwise create a new OTP record
+	otp := &models.OTP{
 		Email:     email,
 		Type:      otpType,
 		CodeHash:  funct.HashOTP(code),
@@ -79,4 +97,8 @@ func (s *Service) VerifyOTP(
 	otp.VerifiedAt = &now
 
 	return s.repo.Update(tx, otp)
+}
+
+func (s *Service) DeleteOTPRecords(tx *gorm.DB, email string, otpType utils.OTPType) error {
+	return s.repo.DeleteByEmailAndType(tx, email, otpType)
 }
