@@ -210,13 +210,19 @@ func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
 		return err
 	}
 
+	// Delete OTP records for this email after successful verification
+	err = s.otpWriter.DeleteOTPRecords(nil, req.Email, req.Type)
+	if err != nil {
+		return errors.New("failed to delete OTP records")
+	}
+
 	// Send welcome email asynchronously after verification
 	go func() {
 		loginUrl := fmt.Sprintf("%s/login", os.Getenv("FRONTEND_URL"))
 		accountVerifiedData := email.AccountVerifiedData{
 			CustomerName:  user.Name,
 			CustomerEmail: user.Email,
-			LoginURL:      loginUrl, // Should be environment variable
+			LoginURL:      loginUrl,
 		}
 		if err := s.emailService.SendAccountVerified(user.Email, accountVerifiedData); err != nil {
 			// Log error but don't fail the verification
@@ -283,6 +289,10 @@ func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
 		return err
 	}
 
+	err = s.otpWriter.DeleteOTPRecords(nil, user.Email, utils.OTPTypePasswordReset)
+	if err != nil {
+		return errors.New("failed to delete OTP records")
+	}
 	return nil
 }
 

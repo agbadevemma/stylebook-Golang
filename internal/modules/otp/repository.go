@@ -51,3 +51,29 @@ func (r *Repository) Update(tx *gorm.DB, otp *models.OTP) error {
 	}
 	return db.Save(otp).Error
 }
+
+func (r *Repository) DeleteByEmailAndType(tx *gorm.DB, email string, otpType utils.OTPType) error {
+	db := tx
+	if db == nil {
+		db = r.db
+	}
+	return db.Where("email = ? AND type = ?", email, otpType).Delete(&models.OTP{}).Error
+}
+
+func (r *Repository) FindLatestOTPByEmailAndType(
+	email string,
+	otpType utils.OTPType,
+) (*models.OTP, error) {
+	var otp models.OTP
+
+	err := r.db.
+		Where("email = ? AND type = ?", email, otpType).
+		Order("created_at DESC").
+		First(&otp).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &otp, nil
+}
