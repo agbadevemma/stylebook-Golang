@@ -46,6 +46,19 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 	token, business, err := h.service.Login(&req)
+	
+	// Check if error is due to unverified email
+	if err != nil && err.Error() == "Email is not verified" {
+		c.JSON(http.StatusForbidden, map[string]any{
+			"success": false,
+			"message": "Email is not verified",
+			"data": map[string]string{
+				"email": req.Email,
+			},
+		})
+		return
+	}
+	
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return

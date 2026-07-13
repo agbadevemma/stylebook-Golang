@@ -6,6 +6,7 @@ const (
 	BookingPending   BookingStatus = "pending"
 	BookingConfirmed BookingStatus = "confirmed"
 	BookingCancelled BookingStatus = "cancelled"
+	BookingCompleted BookingStatus = "completed"
 )
 
 type PaymentStatus string

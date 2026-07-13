@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
+	"github.com/stylebookgo/agbadevemma/internal/modules/notification/email"
 	"github.com/stylebookgo/agbadevemma/internal/modules/otp"
 	"gorm.io/gorm"
 )
@@ -12,10 +13,10 @@ type Module struct {
 	handler *Handler
 }
 
-func NewModule(db *gorm.DB, bus business.BusinessWriter, busHour businesshour.BusinessHourWriter, otpWriter otp.OtpWriter) *Module {
+func NewModule(db *gorm.DB, bus business.BusinessWriter, busHour businesshour.BusinessHourWriter, otpWriter otp.OtpWriter, emailService email.EmailWriter) *Module {
 
 	userRepo := NewRepository(db)
-	userService := NewService(userRepo, bus, busHour, otpWriter)
+	userService := NewService(userRepo, bus, busHour, otpWriter, emailService)
 	userHandler := NewHandler(userService)
 
 	return &Module{handler: userHandler}

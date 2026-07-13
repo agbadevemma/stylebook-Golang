@@ -163,8 +163,12 @@ func (p *Provider) UpdateSubaccount(subaccountCode, businessName, settlementBank
 	return &result, nil
 }
 
-func (p *Provider) InitializePaymentWithSplit(email string, totalAmount int64, reference string, businessSubaccountCode string, platformFee int64) (*PaystackResponse, error) {
+func (p *Provider) InitializePaymentWithSplit(email string, totalAmount int64, reference string, businessSubaccountCode string, platformFee int64, bookingID string) (*PaystackResponse, error) {
 	url := fmt.Sprintf("%s/transaction/initialize", os.Getenv("PAYSTACK_BASE_URL"))
+	callbackURL := fmt.Sprintf("%s/book/success?bookingId=%s",
+		os.Getenv("FRONTEND_URL"),
+		bookingID,
+	)
 
 	payload := map[string]interface{}{
 		"email":              email,
@@ -172,6 +176,7 @@ func (p *Provider) InitializePaymentWithSplit(email string, totalAmount int64, r
 		"reference":          reference,
 		"subaccount":         businessSubaccountCode,
 		"transaction_charge": platformFee,
+		"callback_url":       callbackURL,
 	}
 
 	body, err := json.Marshal(payload)

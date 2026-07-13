@@ -33,9 +33,12 @@ func NewModule(db *gorm.DB, bookingserviceWriter bookingservice.BookingServiceWr
 func (m *Module) ModuleRoutes(api *gin.RouterGroup) {
 	booking := api.Group("/booking")
 	booking.POST("/", m.handler.CreateBooking)
+	booking.GET("/:bookingId/details", m.handler.GetBookingDetails)
 
 	businessBooking := api.Group("/booking")
 	businessBooking.Use(middleware.JWTAuthMiddleware(), middleware.RoleMiddleware(utils.Business))
 	businessBooking.GET("/list", m.handler.ListBusinessBookings)
 	businessBooking.GET("/stats", m.handler.GetBusinessStats)
+	businessBooking.PUT("/:bookingId/reschedule", m.handler.RescheduleBooking)
+	businessBooking.PATCH("/:bookingId/status", m.handler.UpdateBookingStatus)
 }

@@ -2,12 +2,15 @@ package users
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
 	"github.com/stylebookgo/agbadevemma/internal/modules/businesshour"
+	"github.com/stylebookgo/agbadevemma/internal/modules/notification/email"
 	"github.com/stylebookgo/agbadevemma/internal/modules/otp"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
 	"golang.org/x/crypto/bcrypt"
@@ -19,10 +22,11 @@ type Service struct {
 	businessWriter     business.BusinessWriter
 	businessHourWriter businesshour.BusinessHourWriter
 	otpWriter          otp.OtpWriter
+	emailService       email.EmailWriter
 }
 
-func NewService(repo *Repository, bus business.BusinessWriter, busHour businesshour.BusinessHourWriter, otpWriter otp.OtpWriter) *Service {
-	return &Service{repo: repo, businessWriter: bus, businessHourWriter: busHour, otpWriter: otpWriter}
+func NewService(repo *Repository, bus business.BusinessWriter, busHour businesshour.BusinessHourWriter, otpWriter otp.OtpWriter, emailService email.EmailWriter) *Service {
+	return &Service{repo: repo, businessWriter: bus, businessHourWriter: busHour, otpWriter: otpWriter, emailService: emailService}
 }
 
 func (s *Service) Signup(req *SignupRequest) error {
@@ -189,6 +193,10 @@ func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
 	if err != nil {
 		return err
 	}
+	if user.IsEmailVerified {
+		tx.Rollback()
+		return errors.New("account already verified")
+	}
 	now := time.Now().UTC()
 	user.IsEmailVerified = true
 	user.EmailVerifiedAt = &now
@@ -201,6 +209,27 @@ func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
 		tx.Rollback()
 		return err
 	}
+
+	// Delete OTP records for this email after successful verification
+	err = s.otpWriter.DeleteOTPRecords(nil, req.Email, req.Type)
+	if err != nil {
+		return errors.New("failed to delete OTP records")
+	}
+
+	// Send welcome email asynchronously after verification
+	go func() {
+		loginUrl := fmt.Sprintf("%s/login", os.Getenv("FRONTEND_URL"))
+		accountVerifiedData := email.AccountVerifiedData{
+			CustomerName:  user.Name,
+			CustomerEmail: user.Email,
+			LoginURL:      loginUrl,
+		}
+		if err := s.emailService.SendAccountVerified(user.Email, accountVerifiedData); err != nil {
+			// Log error but don't fail the verification
+			// In production, this should be logged to a proper logger
+			_ = err
+		}
+	}()
 
 	return nil
 
@@ -260,6 +289,10 @@ func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
 		return err
 	}
 
+	err = s.otpWriter.DeleteOTPRecords(nil, user.Email, utils.OTPTypePasswordReset)
+	if err != nil {
+		return errors.New("failed to delete OTP records")
+	}
 	return nil
 }
 
