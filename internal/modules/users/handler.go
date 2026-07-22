@@ -29,7 +29,7 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
-	err := h.service.Signup(&req)
+	err := h.service.Signup(c.Request.Context(), &req)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
@@ -45,8 +45,8 @@ func (h *Handler) Login(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	token, business, err := h.service.Login(&req)
-	
+	token, business, err := h.service.Login(c.Request.Context(), &req)
+
 	// Check if error is due to unverified email
 	if err != nil && err.Error() == "Email is not verified" {
 		c.JSON(http.StatusForbidden, map[string]any{
@@ -58,7 +58,7 @@ func (h *Handler) Login(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
@@ -79,7 +79,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	err := h.service.ChangePassword(&req)
+	err := h.service.ChangePassword(c.Request.Context(), &req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
@@ -99,7 +99,7 @@ func (h *Handler) VerifyOTP(c *gin.Context) {
 		return
 	}
 
-	err := h.service.VerifyOTP(&req)
+	err := h.service.VerifyOTP(c.Request.Context(), &req)
 
 	if err != nil {
 		log.Printf("Error -->> %v", err.Error())
