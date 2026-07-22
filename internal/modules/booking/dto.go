@@ -48,9 +48,9 @@ type BookingStatsResponse struct {
 }
 
 type ListBookingsParams struct {
-	Page     int
-	PageSize int
-	Search   string
+	Page      int
+	PageSize  int
+	Search    string
 	StartDate string // YYYY-MM-DD
 	EndDate   string // YYYY-MM-DD
 }

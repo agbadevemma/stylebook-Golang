@@ -33,7 +33,7 @@ func (h *Handler) CreateBooking(c *gin.Context) {
 		return
 	}
 
-	res, err := h.service.CreateBooking(&req, req.BusinessID)
+	res, err := h.service.CreateBooking(c.Request.Context(), &req, req.BusinessID)
 
 	if err != nil {
 		log.Printf("%v", err.Error())
@@ -59,7 +59,7 @@ func (h *Handler) GetBusinessStats(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.service.GetBusinessBookingStats(businessID)
+	stats, err := h.service.GetBusinessBookingStats(c.Request.Context(), businessID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch stats"))
 		return
@@ -84,8 +84,8 @@ func (h *Handler) ListBusinessBookings(c *gin.Context) {
 	page := 1
 	pageSize := 10
 	search := c.Query("search")
-	startDate := c.Query("startDate")  // YYYY-MM-DD
-	endDate := c.Query("endDate")      // YYYY-MM-DD
+	startDate := c.Query("startDate") // YYYY-MM-DD
+	endDate := c.Query("endDate")     // YYYY-MM-DD
 
 	if p := c.Query("page"); p != "" {
 		if v, err := strconv.Atoi(p); err == nil && v > 0 {
@@ -100,7 +100,7 @@ func (h *Handler) ListBusinessBookings(c *gin.Context) {
 
 	params := ListBookingsParams{Page: page, PageSize: pageSize, Search: search, StartDate: startDate, EndDate: endDate}
 
-	bookings, total, err := h.service.ListBusinessBookings(businessID, params)
+	bookings, total, err := h.service.ListBusinessBookings(c.Request.Context(), businessID, params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch bookings"))
 		return
@@ -162,7 +162,7 @@ func (h *Handler) RescheduleBooking(c *gin.Context) {
 		return
 	}
 
-	err = h.service.RescheduleBooking(parsedBookingID, businessID, &req)
+	err = h.service.RescheduleBooking(c.Request.Context(), parsedBookingID, businessID, &req)
 	if err != nil {
 		log.Printf("reschedule error: %v", err.Error())
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
@@ -198,7 +198,7 @@ func (h *Handler) UpdateBookingStatus(c *gin.Context) {
 		return
 	}
 
-	err = h.service.UpdateBookingStatus(parsedBookingID, businessID, req.Status)
+	err = h.service.UpdateBookingStatus(c.Request.Context(), parsedBookingID, businessID, req.Status)
 	if err != nil {
 		log.Printf("update status error: %v", err.Error())
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
@@ -216,7 +216,7 @@ func (h *Handler) GetBookingDetails(c *gin.Context) {
 		return
 	}
 
-	booking, services, business, err := h.service.GetBookingDetailsPublic(parsedBookingID)
+	booking, services, business, err := h.service.GetBookingDetailsPublic(c.Request.Context(), parsedBookingID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, utils.ErrorResponse("booking not found"))
 		return
@@ -229,18 +229,18 @@ func (h *Handler) GetBookingDetails(c *gin.Context) {
 	}
 
 	type BookingDetail struct {
-		ID            string           `json:"id"`
-		CustomerName  string           `json:"customerName"`
-		CustomerEmail string           `json:"customerEmail"`
-		CustomerPhone string           `json:"customerPhone"`
-		BusinessName  string           `json:"businessName"`
-		Timezone      string           `json:"timezone"`
-		StartTime     string           `json:"startTime"`
-		EndTime       string           `json:"endTime"`
-		TotalDuration int              `json:"totalDuration"`
-		BookingStatus string           `json:"bookingStatus"`
-		PaymentStatus string           `json:"paymentStatus"`
-		Services      []ServiceDetail  `json:"services"`
+		ID            string          `json:"id"`
+		CustomerName  string          `json:"customerName"`
+		CustomerEmail string          `json:"customerEmail"`
+		CustomerPhone string          `json:"customerPhone"`
+		BusinessName  string          `json:"businessName"`
+		Timezone      string          `json:"timezone"`
+		StartTime     string          `json:"startTime"`
+		EndTime       string          `json:"endTime"`
+		TotalDuration int             `json:"totalDuration"`
+		BookingStatus string          `json:"bookingStatus"`
+		PaymentStatus string          `json:"paymentStatus"`
+		Services      []ServiceDetail `json:"services"`
 	}
 
 	serviceDetails := make([]ServiceDetail, len(services))

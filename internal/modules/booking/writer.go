@@ -1,6 +1,7 @@
 package booking
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -8,6 +9,6 @@ import (
 )
 
 type BookingWriter interface {
-	GetBookings(businessID uuid.UUID, start, end time.Time) ([]models.Booking, error)
-	GetBookingByID(id uuid.UUID) (*models.Booking, error)
+	GetBookings(ctx context.Context, businessID uuid.UUID, start, end time.Time) ([]models.Booking, error)
+	GetBookingByID(ctx context.Context, id uuid.UUID) (*models.Booking, error)
 }

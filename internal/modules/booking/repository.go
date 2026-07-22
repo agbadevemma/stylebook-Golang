@@ -1,6 +1,7 @@
 package booking
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,34 +17,34 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) CreateBooking(tx *gorm.DB, booking *models.Booking) error {
-	return tx.Create(booking).Error
+func (r *Repository) CreateBooking(ctx context.Context, tx *gorm.DB, booking *models.Booking) error {
+	return tx.WithContext(ctx).Create(booking).Error
 }
 
-func (r *Repository) GetBookingByID(id uuid.UUID) (*models.Booking, error) {
+func (r *Repository) GetBookingByID(ctx context.Context, id uuid.UUID) (*models.Booking, error) {
 	var booking models.Booking
-	if err := r.db.First(&booking, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&booking, id).Error; err != nil {
 		return nil, err
 	}
 	return &booking, nil
 }
 
-func (r *Repository) GetAllBookings() ([]*models.Booking, error) {
+func (r *Repository) GetAllBookings(ctx context.Context) ([]*models.Booking, error) {
 	var bookings []*models.Booking
-	if err := r.db.Find(&bookings).Error; err != nil {
+	if err := r.db.WithContext(ctx).Find(&bookings).Error; err != nil {
 		return nil, err
 	}
 	return bookings, nil
 }
 
-func (r *Repository) GetBookings(
+func (r *Repository) GetBookings(ctx context.Context,
 	businessID uuid.UUID,
 	start, end time.Time,
 ) ([]models.Booking, error) {
 
 	var bookings []models.Booking
 
-	err := r.db.
+	err := r.db.WithContext(ctx).
 		Where("business_id = ? AND start_time < ? AND end_time > ?",
 			businessID, end, start).
 		Find(&bookings).Error
@@ -51,8 +52,8 @@ func (r *Repository) GetBookings(
 	return bookings, err
 }
 
-func (r *Repository) GetBusinessBookingStats(businessID uuid.UUID) (total int64, today int64, pending int64, clients int64, err error) {
-	if err = r.db.Model(&models.Booking{}).
+func (r *Repository) GetBusinessBookingStats(ctx context.Context, businessID uuid.UUID) (total int64, today int64, pending int64, clients int64, err error) {
+	if err = r.db.WithContext(ctx).Model(&models.Booking{}).
 		Where("business_id = ? AND booking_status != ?", businessID, "completed").
 		Count(&total).Error; err != nil {
 		return
@@ -61,19 +62,19 @@ func (r *Repository) GetBusinessBookingStats(businessID uuid.UUID) (total int64,
 	now := time.Now().UTC()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	todayEnd := todayStart.Add(24 * time.Hour)
-	if err = r.db.Model(&models.Booking{}).
+	if err = r.db.WithContext(ctx).Model(&models.Booking{}).
 		Where("business_id = ? AND start_time >= ? AND start_time < ? AND booking_status != ?", businessID, todayStart, todayEnd, "completed").
 		Count(&today).Error; err != nil {
 		return
 	}
 
-	if err = r.db.Model(&models.Booking{}).
+	if err = r.db.WithContext(ctx).Model(&models.Booking{}).
 		Where("business_id = ? AND booking_status = ?", businessID, "pending").
 		Count(&pending).Error; err != nil {
 		return
 	}
 
-	if err = r.db.Model(&models.Booking{}).
+	if err = r.db.WithContext(ctx).Model(&models.Booking{}).
 		Where("business_id = ? AND booking_status != ?", businessID, "completed").
 		Distinct("customer_email").
 		Count(&clients).Error; err != nil {
@@ -83,11 +84,11 @@ func (r *Repository) GetBusinessBookingStats(businessID uuid.UUID) (total int64,
 	return
 }
 
-func (r *Repository) ListBusinessBookings(businessID uuid.UUID, params ListBookingsParams) ([]models.Booking, int64, error) {
+func (r *Repository) ListBusinessBookings(ctx context.Context, businessID uuid.UUID, params ListBookingsParams) ([]models.Booking, int64, error) {
 	var bookings []models.Booking
 	var total int64
 
-	query := r.db.Model(&models.Booking{}).Where("business_id = ? AND booking_status != ?", businessID, "completed")
+	query := r.db.WithContext(ctx).Model(&models.Booking{}).Where("business_id = ? AND booking_status != ?", businessID, "completed")
 
 	if params.Search != "" {
 		like := "%" + params.Search + "%"
@@ -128,6 +129,6 @@ func (r *Repository) ListBusinessBookings(businessID uuid.UUID, params ListBooki
 	return bookings, total, err
 }
 
-func (r *Repository) UpdateBooking(tx *gorm.DB, booking *models.Booking) error {
-	return tx.Model(booking).Updates(booking).Error
+func (r *Repository) UpdateBooking(ctx context.Context, tx *gorm.DB, booking *models.Booking) error {
+	return tx.WithContext(ctx).Model(booking).Updates(booking).Error
 }
