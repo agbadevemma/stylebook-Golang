@@ -42,7 +42,7 @@ func (h *Handler) CreateBlockedTime(c *gin.Context) {
 
 	businessID := c.MustGet("businessId").(uuid.UUID)
 
-	if err := h.service.CreateBlockedTime(&req, businessID); err != nil {
+	if err := h.service.CreateBlockedTime(c.Request.Context(), &req, businessID); err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse(err.Error()))
 		return
 	}
@@ -60,7 +60,7 @@ func (h *Handler) ListBlockedTime(c *gin.Context) {
 		return
 	}
 
-	blockedTimes, err := h.service.ListBlockedTime(businessID)
+	blockedTimes, err := h.service.ListBlockedTime(c.Request.Context(), businessID)
 
 	if err != nil {
 		switch {
@@ -96,7 +96,7 @@ func (h *Handler) GetBlockedTimeByID(c *gin.Context) {
 		return
 	}
 
-	blockedTime, err := h.service.GetBlockedTimeByID(id)
+	blockedTime, err := h.service.GetBlockedTimeByID(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, utils.ErrorResponse("blocked time not found"))
@@ -161,7 +161,7 @@ func (h *Handler) UpdateBlockedTime(c *gin.Context) {
 		}
 	}
 
-	err = h.service.UpdateBlockedTime(id, businessID, &req)
+	err = h.service.UpdateBlockedTime(c.Request.Context(), id, businessID, &req)
 	if err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
@@ -186,7 +186,7 @@ func (h *Handler) DeleteBlockedTime(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteBlockedTime(id); err != nil {
+	if err := h.service.DeleteBlockedTime(c.Request.Context(), id); err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
 			c.JSON(http.StatusNotFound, utils.ErrorResponse("blocked time not found"))

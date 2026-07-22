@@ -1,6 +1,7 @@
 package blockedtime
 
 import (
+	"context"
 	"errors"
 
 	"github.com/google/uuid"
@@ -18,11 +19,12 @@ func NewService(repo *Repository, businessWriter business.BusinessWriter) *Servi
 }
 
 func (s *Service) CreateBlockedTime(
+	ctx context.Context,
 	req *CreateBlockedTimeRequest,
 	businessID uuid.UUID,
 ) error {
 
-	_, err := s.businessWriter.GetBusinessByID(businessID)
+	_, err := s.businessWriter.GetBusinessByID(ctx, s.repo.db, businessID)
 	if err != nil {
 		return err
 	}
@@ -35,6 +37,7 @@ func (s *Service) CreateBlockedTime(
 
 	// Check for overlaps using UTC times
 	exists, err := s.repo.HasOverlappingBlockedTime(
+		ctx,
 		businessID,
 		req.StartTime,
 		req.EndTime,
@@ -56,33 +59,34 @@ func (s *Service) CreateBlockedTime(
 		Reason:     req.Reason,
 	}
 
-	return s.repo.CreateBlockedTime(blockedTime)
+	return s.repo.CreateBlockedTime(ctx, blockedTime)
 }
 
-func (s *Service) ListBlockedTime(businessID uuid.UUID) ([]models.BlockedTime, error) {
-	_, err := s.businessWriter.GetBusinessByID(businessID)
+func (s *Service) ListBlockedTime(ctx context.Context, businessID uuid.UUID) ([]models.BlockedTime, error) {
+	_, err := s.businessWriter.GetBusinessByID(ctx, s.repo.db, businessID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.ListBlockedTime(businessID)
+	return s.repo.ListBlockedTime(ctx, businessID)
 }
 
-func (s *Service) GetBlockedTimeByID(id uuid.UUID) (*models.BlockedTime, error) {
-	return s.repo.GetBlockedTimeByID(id)
+func (s *Service) GetBlockedTimeByID(ctx context.Context, id uuid.UUID) (*models.BlockedTime, error) {
+	return s.repo.GetBlockedTimeByID(ctx, id)
 }
 
 func (s *Service) UpdateBlockedTime(
+	ctx context.Context,
 	id uuid.UUID,
 	businessID uuid.UUID,
 	req *UpdateBlockedTimeRequest,
 ) error {
 
-	blockedTime, err := s.repo.GetBlockedTimeByID(id)
+	blockedTime, err := s.repo.GetBlockedTimeByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	_, err = s.businessWriter.GetBusinessByID(businessID)
+	_, err = s.businessWriter.GetBusinessByID(ctx, s.repo.db, businessID)
 	if err != nil {
 		return err
 	}
@@ -103,10 +107,10 @@ func (s *Service) UpdateBlockedTime(
 		blockedTime.Reason = req.Reason
 	}
 
-	return s.repo.UpdateBlockedTime(blockedTime)
+	return s.repo.UpdateBlockedTime(ctx, blockedTime)
 }
 
-func (s *Service) DeleteBlockedTime(id uuid.UUID) error {
+func (s *Service) DeleteBlockedTime(ctx context.Context, id uuid.UUID) error {
 
-	return s.repo.DeleteBlockedTime(id)
+	return s.repo.DeleteBlockedTime(ctx, id)
 }
