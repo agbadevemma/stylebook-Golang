@@ -61,7 +61,7 @@ func (h *Handler) GetAvailability(c *gin.Context) {
 	// 	return
 	// }
 
-	result, err := h.service.GetAvailabilityRange(parsedBusinessId, startDate, endDate)
+	result, err := h.service.GetAvailabilityRange(c.Request.Context(), parsedBusinessId, startDate, endDate)
 	if err != nil {
 		log.Printf("%s", err.Error())
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("An error occured"))

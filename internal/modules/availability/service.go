@@ -4,6 +4,8 @@ import (
 	"errors"
 	"time"
 
+	"context"
+
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/funct"
 	"github.com/stylebookgo/agbadevemma/internal/modules/blockedtime"
@@ -29,11 +31,12 @@ func NewService(bookingWriter booking.BookingWriter, blockedTimesWriter blockedt
 }
 
 func (s *Service) GetAvailabilityRange(
+	ctx context.Context,
 	businessID uuid.UUID,
 	startDate, endDate time.Time,
 ) ([]DayAvailability, error) {
 
-	business, err := s.businessWriter.GetBusinessByID(businessID)
+	business, err := s.businessWriter.GetBusinessByID(ctx, nil, businessID)
 	if err != nil {
 		return nil, errors.New("business not found")
 	}
@@ -51,7 +54,7 @@ func (s *Service) GetAvailabilityRange(
 		// Convert UTC date to business timezone to determine which calendar day it represents
 		dLocal := d.In(loc)
 
-		slots, err := s.getDaySlots(businessID, dLocal)
+		slots, err := s.getDaySlots(ctx, businessID, dLocal)
 		if err != nil {
 			return nil, err
 		}
@@ -66,6 +69,7 @@ func (s *Service) GetAvailabilityRange(
 }
 
 func (s *Service) getDaySlots(
+	ctx context.Context,
 	businessID uuid.UUID,
 
 	dateLocal time.Time,
@@ -75,7 +79,7 @@ func (s *Service) getDaySlots(
 	// Use local time to determine which day of week (in business's timezone)
 	day := int(dateLocal.Weekday())
 
-	hour, err := s.businessHourWriter.GetBusinessHour(businessID, day)
+	hour, err := s.businessHourWriter.GetBusinessHour(ctx, nil, businessID, day)
 
 	if hour.StartTime == "" || hour.EndTime == "" {
 		return []SlotResponse{}, nil
@@ -98,17 +102,17 @@ func (s *Service) getDaySlots(
 	}
 	endUTC := end.UTC()
 
-	blocked, err := s.blockedTimesWriter.GetBlockedTimes(businessID, startUTC, endUTC)
+	blocked, err := s.blockedTimesWriter.GetBlockedTimes(ctx, nil, businessID, startUTC, endUTC)
 	if err != nil {
 		return nil, err
 	}
 
-	bookings, err := s.bookingWriter.GetBookings(businessID, startUTC, endUTC)
+	bookings, err := s.bookingWriter.GetBookings(ctx,  businessID, startUTC, endUTC)
 	if err != nil {
 		return nil, err
 	}
 
-	slotDuration := 30 * time.Minute 
+	slotDuration := 30 * time.Minute
 	step := 15 * time.Minute
 
 	var slots []SlotResponse
@@ -128,7 +132,6 @@ func (s *Service) getDaySlots(
 			continue
 		}
 
-		
 		slots = append(slots, SlotResponse{
 			Time: cursor,
 		})
