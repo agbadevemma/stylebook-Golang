@@ -1,8 +1,10 @@
 package email
 
+import "context"
+
 type EmailWriter interface {
-	SendOTP(email string, otp string) error
-	SendPasswordReset(email string, otp string) error
-	SendBookingConfirmation(email string, data BookingConfirmationData) error
-	SendAccountVerified(email string, data AccountVerifiedData) error
+	SendOTP(ctx context.Context, email string, otp string) error
+	SendPasswordReset(ctx context.Context, email string, otp string) error
+	SendBookingConfirmation(ctx context.Context, email string, data BookingConfirmationData) error
+	SendAccountVerified(ctx context.Context, email string, data AccountVerifiedData) error
 }

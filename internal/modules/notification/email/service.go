@@ -1,6 +1,7 @@
 package email
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -37,7 +38,7 @@ func NewEmailService() *Service {
 	}
 }
 
-func (s *Service) SendOTP(email string, otp string) error {
+func (s *Service) SendOTP(ctx context.Context, email string, otp string) error {
 	subject := "Your Verification Code"
 
 	html := fmt.Sprintf(`
@@ -84,7 +85,7 @@ func (s *Service) SendOTP(email string, otp string) error {
 									</div>
 
 									<p style="margin: 30px 0 0 0; color: #999999; font-size: 13px;">
-										If you didn't request this code, please ignore this email or <a href="mailto:support@yourdomain.com" style="color: #000000; text-decoration: underline;">contact support</a>.
+										If you didn't request this code, please ignore this email or <a href="mailto:hello@ductdigitals.com" style="color: #000000; text-decoration: underline;">contact support</a>.
 									</p>
 								</td>
 							</tr>
@@ -115,7 +116,7 @@ func (s *Service) SendOTP(email string, otp string) error {
 	return err
 }
 
-func (s *Service) SendPasswordReset(email string, otp string) error {
+func (s *Service) SendPasswordReset(ctx context.Context, email string, otp string) error {
 	subject := "Reset Your Password"
 
 	html := fmt.Sprintf(`
@@ -168,12 +169,12 @@ func (s *Service) SendPasswordReset(email string, otp string) error {
 
 									<div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 15px 20px; border-radius: 4px; margin: 30px 0;">
 										<p style="margin: 0; color: #721c24; font-size: 14px;">
-											<strong>Security Alert:</strong> If you didn't request this, someone may be trying to access your account. Change your password immediately and <a href="mailto:support@yourdomain.com" style="color: #721c24; text-decoration: underline; font-weight: bold;">contact support</a>.
+											<strong>Security Alert:</strong> If you didn't request this, someone may be trying to access your account. Change your password immediately and <a href="mailto:hello@ductdigitals.com" style="color: #721c24; text-decoration: underline; font-weight: bold;">contact support</a>.
 										</p>
 									</div>
 
 									<p style="margin: 20px 0 0 0; color: #999999; font-size: 13px;">
-										Questions? <a href="mailto:support@yourdomain.com" style="color: #000000; text-decoration: underline;">Get help from our support team</a>
+										Questions? <a href="mailto:hello@ductdigitals.com" style="color: #000000; text-decoration: underline;">Get help from our support team</a>
 									</p>
 								</td>
 							</tr>
@@ -204,8 +205,8 @@ func (s *Service) SendPasswordReset(email string, otp string) error {
 	return err
 }
 
-func (s *Service) SendBookingConfirmation(email string, data BookingConfirmationData) error {
-	subject := fmt.Sprintf("✓ Booking Confirmed at %s", data.BusinessName)
+func (s *Service) SendBookingConfirmation(ctx context.Context, email string, data BookingConfirmationData) error {
+	subject := fmt.Sprintf("Booking Confirmed at %s", data.BusinessName)
 
 	html := fmt.Sprintf(`
 		<!DOCTYPE html>
@@ -338,8 +339,8 @@ func (s *Service) SendBookingConfirmation(email string, data BookingConfirmation
 	return err
 }
 
-func (s *Service) SendAccountVerified(email string, data AccountVerifiedData) error {
-	subject := "✓ Your Account is Verified - Welcome!"
+func (s *Service) SendAccountVerified(ctx context.Context, email string, data AccountVerifiedData) error {
+	subject := "Your Account is Verified - Welcome!"
 
 	html := fmt.Sprintf(`
 		<!DOCTYPE html>
@@ -411,7 +412,7 @@ func (s *Service) SendAccountVerified(email string, data AccountVerifiedData) er
 
 									<!-- Support -->
 									<p style="margin: 20px 0 0 0; color: #999999; font-size: 13px;">
-										Need help? <a href="mailto:support@yourdomain.com" style="color: #000000; text-decoration: underline;">Contact our support team</a>
+										Need help? <a href="mailto:hello@ductdigitals.com" style="color: #000000; text-decoration: underline;">Contact our support team</a>
 									</p>
 								</td>
 							</tr>
