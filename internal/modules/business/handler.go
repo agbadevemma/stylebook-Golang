@@ -24,7 +24,7 @@ func (h *Handler) GetBusinessSettings(c *gin.Context) {
 		return
 	}
 
-	business, err := h.service.GetBusinessSettings(businessID)
+	business, err := h.service.GetBusinessSettings(c.Request.Context(), businessID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, utils.ErrorResponse("business not found"))
 		return
@@ -54,7 +54,7 @@ func (h *Handler) UpdateBusinessDetails(c *gin.Context) {
 		return
 	}
 
-	business, err := h.service.UpdateBusinessDetails(businessID, req)
+	business, err := h.service.UpdateBusinessDetails(c.Request.Context(), businessID, req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
@@ -88,7 +88,6 @@ func getBusinessIDFromContext(c *gin.Context) (uuid.UUID, bool) {
 	return businessID, true
 }
 
-
 func (h *Handler) GetPublicBusiness(c *gin.Context) {
 	idParam := c.Param("id")
 	if idParam == "" {
@@ -102,7 +101,7 @@ func (h *Handler) GetPublicBusiness(c *gin.Context) {
 		return
 	}
 
-	businessData, err := h.service.GetBusinessByID(businessID)
+	businessData, err := h.service.GetBusinessByID(c.Request.Context(), businessID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, utils.ErrorResponse("business not found"))

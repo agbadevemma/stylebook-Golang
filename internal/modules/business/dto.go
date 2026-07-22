@@ -8,13 +8,13 @@ type UpdateBusinessDetailsRequest struct {
 }
 
 type BusinessSettingsResponse struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Timezone      string `json:"timezone"`
-	AccountNumber string `json:"accountNumber"`
-	AccountName   string `json:"accountName"`
-	BankName      string `json:"bankName"`
-	BankCode      string `json:"bankCode"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Timezone       string `json:"timezone"`
+	AccountNumber  string `json:"accountNumber"`
+	AccountName    string `json:"accountName"`
+	BankName       string `json:"bankName"`
+	BankCode       string `json:"bankCode"`
 	SubaccountCode string `json:"subaccountCode"`
 }
 
