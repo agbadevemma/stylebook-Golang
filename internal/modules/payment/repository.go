@@ -1,6 +1,7 @@
 package payment
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,18 +18,18 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) CreatePayment(tx *gorm.DB, payment *models.Payment) error {
-	return tx.Create(payment).Error
+func (r *Repository) CreatePayment(ctx context.Context, tx *gorm.DB, payment *models.Payment) error {
+	return tx.WithContext(ctx).Create(payment).Error
 }
 
-func (r *Repository) UpdatePayment(tx *gorm.DB, payment *models.Payment) error {
+func (r *Repository) UpdatePayment(ctx context.Context, tx *gorm.DB, payment *models.Payment) error {
 
-	return tx.Save(payment).Error
+	return tx.WithContext(ctx).Save(payment).Error
 }
 
-func (r *Repository) CalculateBookingAmount(tx *gorm.DB, bookingID uuid.UUID) (int64, error) {
+func (r *Repository) CalculateBookingAmount(ctx context.Context, tx *gorm.DB, bookingID uuid.UUID) (int64, error) {
 	var totalAmount int64
-	err := tx.
+	err := tx.WithContext(ctx).
 		Model(&models.BookingService{}).
 		Where("booking_id = ?", bookingID).
 		Select("COALESCE(SUM(price), 0)").
@@ -40,36 +41,36 @@ func (r *Repository) CalculateBookingAmount(tx *gorm.DB, bookingID uuid.UUID) (i
 	return totalAmount, nil
 }
 
-func (r *Repository) GetPaymentByBookingID(tx *gorm.DB, bookingID uuid.UUID) (*models.Payment, error) {
+func (r *Repository) GetPaymentByBookingID(ctx context.Context, tx *gorm.DB, bookingID uuid.UUID) (*models.Payment, error) {
 	var payment models.Payment
 	if tx == nil {
 		tx = r.db
 	}
-	if err := tx.Where("booking_id = ?", bookingID).First(&payment).Error; err != nil {
+	if err := tx.WithContext(ctx).Where("booking_id = ?", bookingID).First(&payment).Error; err != nil {
 		return nil, err
 	}
 	return &payment, nil
 }
 
-func (r *Repository) GetPaymentByReference(tx *gorm.DB, reference string) (*models.Payment, error) {
+func (r *Repository) GetPaymentByReference(ctx context.Context, tx *gorm.DB, reference string) (*models.Payment, error) {
 	var payment models.Payment
 	if tx == nil {
 		tx = r.db
 	}
-	if err := tx.Where("reference = ?", reference).First(&payment).Error; err != nil {
+	if err := tx.WithContext(ctx).Where("reference = ?", reference).First(&payment).Error; err != nil {
 		return nil, err
 	}
 	return &payment, nil
 }
 
-func (r *Repository) UpdateBookingStatus(
+func (r *Repository) UpdateBookingStatus(ctx context.Context,
 	tx *gorm.DB,
 	bookingID uuid.UUID,
 	bookingStatus utils.BookingStatus,
 	paymentStatus utils.PaymentStatus,
 ) error {
 
-	return tx.
+	return tx.WithContext(ctx).
 		Model(&models.Booking{}).
 		Where("id = ?", bookingID).
 		Updates(map[string]any{
@@ -80,6 +81,7 @@ func (r *Repository) UpdateBookingStatus(
 }
 
 func (r *Repository) GetPaymentsByBusiness(
+	ctx context.Context,
 	businessID uuid.UUID,
 	params ListTransactionsParams,
 ) ([]models.Payment, int64, error) {
@@ -87,8 +89,8 @@ func (r *Repository) GetPaymentsByBusiness(
 	var payments []models.Payment
 	var total int64
 
-	query := r.db.Model(&models.Payment{}).
-		Where("business_id = ?", businessID)
+	query := r.db.WithContext(ctx).Model(&models.Payment{}). // This line is already correct, no change needed
+									Where("business_id = ?", businessID)
 
 	if params.Search != "" {
 		like := "%" + params.Search + "%"
@@ -133,17 +135,17 @@ func (r *Repository) GetPaymentsByBusiness(
 	return payments, total, nil
 }
 
-func (r *Repository) GetBookingByID(bookingID uuid.UUID) (*models.Booking, error) {
+func (r *Repository) GetBookingByID(ctx context.Context, bookingID uuid.UUID) (*models.Booking, error) {
 	var booking models.Booking
-	if err := r.db.Where("id = ?", bookingID).First(&booking).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", bookingID).First(&booking).Error; err != nil {
 		return nil, err
 	}
 	return &booking, nil
 }
 
-func (r *Repository) GetBookingServices(bookingID uuid.UUID) ([]models.BookingService, error) {
+func (r *Repository) GetBookingServices(ctx context.Context, bookingID uuid.UUID) ([]models.BookingService, error) {
 	var services []models.BookingService
-	if err := r.db.Where("booking_id = ?", bookingID).Find(&services).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("booking_id = ?", bookingID).Find(&services).Error; err != nil {
 		return nil, err
 	}
 	return services, nil

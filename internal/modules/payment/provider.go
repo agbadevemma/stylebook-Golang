@@ -2,6 +2,7 @@ package payment
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,14 +16,14 @@ func NewProvider() *Provider {
 	return &Provider{}
 }
 
-func (p *Provider) ResolveBankAccount(accountNumber, bankCode string) (*BankResolveResponse, error) {
+func (p *Provider) ResolveBankAccount(ctx context.Context, accountNumber, bankCode string) (*BankResolveResponse, error) {
 	url := fmt.Sprintf("%s/bank/resolve?account_number=%s&bank_code=%s",
 		os.Getenv("PAYSTACK_BASE_URL"),
 		accountNumber,
 		bankCode,
 	)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -48,10 +49,10 @@ func (p *Provider) ResolveBankAccount(accountNumber, bankCode string) (*BankReso
 	return &result, nil
 }
 
-func (p *Provider) GetBanks() ([]Bank, error) {
+func (p *Provider) GetBanks(ctx context.Context) ([]Bank, error) {
 	url := fmt.Sprintf("%s/bank", os.Getenv("PAYSTACK_BASE_URL"))
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func (p *Provider) GetBanks() ([]Bank, error) {
 	return result.Data, nil
 }
 
-func (p *Provider) CreateSubaccount(businessName, settlementBank, accountNumber string) (*CreateSubaccountResponse, error) {
+func (p *Provider) CreateSubaccount(ctx context.Context, businessName, settlementBank, accountNumber string) (*CreateSubaccountResponse, error) {
 	url := fmt.Sprintf("%s/subaccount", os.Getenv("PAYSTACK_BASE_URL"))
 
 	payload := CreateSubaccountRequest{
@@ -93,7 +94,7 @@ func (p *Provider) CreateSubaccount(businessName, settlementBank, accountNumber 
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +121,7 @@ func (p *Provider) CreateSubaccount(businessName, settlementBank, accountNumber 
 	return &result, nil
 }
 
-func (p *Provider) UpdateSubaccount(subaccountCode, businessName, settlementBank, accountNumber string) (*CreateSubaccountResponse, error) {
+func (p *Provider) UpdateSubaccount(ctx context.Context, subaccountCode, businessName, settlementBank, accountNumber string) (*CreateSubaccountResponse, error) {
 	url := fmt.Sprintf("%s/subaccount/%s", os.Getenv("PAYSTACK_BASE_URL"), subaccountCode)
 	payload := UpdateSubaccountRequest{
 		BusinessName:     businessName,
@@ -136,7 +137,7 @@ func (p *Provider) UpdateSubaccount(subaccountCode, businessName, settlementBank
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +164,7 @@ func (p *Provider) UpdateSubaccount(subaccountCode, businessName, settlementBank
 	return &result, nil
 }
 
-func (p *Provider) InitializePaymentWithSplit(email string, totalAmount int64, reference string, businessSubaccountCode string, platformFee int64, bookingID string) (*PaystackResponse, error) {
+func (p *Provider) InitializePaymentWithSplit(ctx context.Context, email string, totalAmount int64, reference string, businessSubaccountCode string, platformFee int64, bookingID string) (*PaystackResponse, error) {
 	url := fmt.Sprintf("%s/transaction/initialize", os.Getenv("PAYSTACK_BASE_URL"))
 	callbackURL := fmt.Sprintf("%s/book/success?bookingId=%s",
 		os.Getenv("FRONTEND_URL"),
@@ -184,7 +185,7 @@ func (p *Provider) InitializePaymentWithSplit(email string, totalAmount int64, r
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}

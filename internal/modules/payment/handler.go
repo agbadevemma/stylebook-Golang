@@ -54,7 +54,7 @@ func (h *Handler) PaymentWebhook(c *gin.Context) {
 
 	// 	log.Printf("payment webhook processing error: %v", err)
 	// }
-	if err := h.service.HandleEvent(event); err != nil {
+	if err := h.service.HandleEvent(c.Request.Context(), event); err != nil {
 		log.Printf("webhook processing error: %v", err)
 	}
 
@@ -77,8 +77,8 @@ func (h *Handler) GetBusinessTransactions(c *gin.Context) {
 	page := 1
 	pageSize := 10
 	search := c.Query("search")
-	startDate := c.Query("startDate")  // YYYY-MM-DD
-	endDate := c.Query("endDate")      // YYYY-MM-DD
+	startDate := c.Query("startDate") // YYYY-MM-DD
+	endDate := c.Query("endDate")     // YYYY-MM-DD
 
 	if p := c.Query("page"); p != "" {
 		if v, err := strconv.Atoi(p); err == nil && v > 0 {
@@ -99,7 +99,7 @@ func (h *Handler) GetBusinessTransactions(c *gin.Context) {
 		EndDate:   endDate,
 	}
 
-	data, total, err := h.service.GetBusinessTransactions(businessID, params)
+	data, total, err := h.service.GetBusinessTransactions(c.Request.Context(), businessID, params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch transactions"))
 		return
@@ -146,7 +146,7 @@ func (h *Handler) ResolveBankAccount(c *gin.Context) {
 		return
 	}
 
-	res, err := h.service.ResolveBankAccount(accountNumber, bankCode)
+	res, err := h.service.ResolveBankAccount(c.Request.Context(), accountNumber, bankCode)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
@@ -159,7 +159,7 @@ func (h *Handler) ResolveBankAccount(c *gin.Context) {
 }
 
 func (h *Handler) GetBanks(c *gin.Context) {
-	banks, err := h.service.GetBanks()
+	banks, err := h.service.GetBanks(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("failed to fetch banks: "+err.Error()))
 		return
@@ -187,7 +187,7 @@ func (h *Handler) CreateSubAccount(c *gin.Context) {
 		return
 	}
 
-	subaccountCode, err := h.service.CreateBusinessSubaccount(businessID, req)
+	subaccountCode, err := h.service.CreateBusinessSubaccount(c.Request.Context(), businessID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse(err.Error()))
 		return
