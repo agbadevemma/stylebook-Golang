@@ -3,6 +3,7 @@ package availability
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,29 +44,80 @@ func (s *Service) GetAvailabilityRange(
 	startDate, endDate time.Time,
 ) ([]DayAvailability, error) {
 
-	// QUERY 1
-	biz, err := s.businessWriter.GetBusinessByID(
-		ctx,
-		nil,
-		businessID,
-	)
+	var (
+		biz          *models.Business
+		hours        []models.BusinessHour
+		bookings     []models.Booking
+		blockedTimes []models.BlockedTime
 
-	if err != nil {
+		bizErr      error
+		hoursErr    error
+		bookingsErr error
+		blockedErr  error
+	)
+	var wg sync.WaitGroup
+	wg.Add(4)
+
+	go func() {
+		defer wg.Done()
+
+		biz, bizErr = s.businessWriter.GetBusinessByID(
+			ctx,
+			nil,
+			businessID,
+		)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		hours, hoursErr = s.businessHourWriter.GetBusinessHours(
+			ctx,
+			nil,
+			businessID,
+		)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		bookings, bookingsErr = s.bookingWriter.GetBookings(
+			ctx,
+			businessID,
+			startDate.UTC(),
+			endDate.AddDate(0, 0, 1).UTC(),
+		)
+
+	}()
+	go func() {
+		defer wg.Done()
+		blockedTimes, blockedErr = s.blockedTimesWriter.GetBlockedTimes(
+			ctx,
+			nil,
+			businessID,
+			startDate.UTC(),
+			endDate.AddDate(0, 0, 1).UTC(),
+		)
+
+	}()
+
+	wg.Wait()
+
+	if bizErr != nil {
 		return nil, errors.New("business not found")
+	}
+	if blockedErr != nil {
+		return nil, blockedErr
+	}
+	if bookingsErr != nil {
+		return nil, bookingsErr
+	}
+	
+	if hoursErr != nil {
+		return nil, hoursErr
 	}
 
 	loc, err := time.LoadLocation(biz.Timezone)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// QUERY 2
-	hours, err := s.businessHourWriter.GetBusinessHours(
-		ctx,
-		nil,
-		businessID,
-	)
 
 	if err != nil {
 		return nil, err
@@ -75,18 +127,6 @@ func (s *Service) GetAvailabilityRange(
 
 	for _, h := range hours {
 		hourMap[h.DayOfWeek] = h
-	}
-
-	// QUERY 3
-	bookings, err := s.bookingWriter.GetBookings(
-		ctx,
-		businessID,
-		startDate.UTC(),
-		endDate.AddDate(0, 0, 1).UTC(),
-	)
-
-	if err != nil {
-		return nil, err
 	}
 
 	bookingMap := make(map[string][]models.Booking)
@@ -100,19 +140,6 @@ func (s *Service) GetAvailabilityRange(
 			bookingMap[key],
 			b,
 		)
-	}
-
-	// QUERY 4
-	blockedTimes, err := s.blockedTimesWriter.GetBlockedTimes(
-		ctx,
-		nil,
-		businessID,
-		startDate.UTC(),
-		endDate.AddDate(0, 0, 1).UTC(),
-	)
-
-	if err != nil {
-		return nil, err
 	}
 
 	blockedMap := make(map[string][]models.BlockedTime)
