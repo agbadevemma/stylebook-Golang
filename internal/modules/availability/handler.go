@@ -56,15 +56,19 @@ func (h *Handler) GetAvailability(c *gin.Context) {
 		return
 	}
 
-	// if endDate.Sub(startDate) > 31*24*time.Hour {
-	// 	c.JSON(http.StatusBadRequest, utils.ErrorResponse("Date range cannot exceed 31 days"))
-	// 	return
-	// }
+	if endDate.Sub(startDate) > 31*24*time.Hour {
+		log.Printf("Date range error: startDate=%s, endDate=%s", startDateStr, endDateStr)
+		c.JSON(
+			http.StatusBadRequest,
+			utils.ErrorResponse("Date range cannot exceed 31 days"),
+		)
+		return
+	}
 
 	result, err := h.service.GetAvailabilityRange(c.Request.Context(), parsedBusinessId, startDate, endDate)
 	if err != nil {
-		log.Printf("%s", err.Error())
-		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("An error occured"))
+		log.Printf("Get availability api error: %s", err.Error())
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("An error occurred"))
 		return
 	}
 	c.JSON(http.StatusOK, utils.SuccessResponse("availability fetched", result))
