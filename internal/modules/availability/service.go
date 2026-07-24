@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/funct"
+	"github.com/stylebookgo/agbadevemma/internal/models"
 	"github.com/stylebookgo/agbadevemma/internal/modules/blockedtime"
 	"github.com/stylebookgo/agbadevemma/internal/modules/booking"
 	"github.com/stylebookgo/agbadevemma/internal/modules/business"
@@ -46,6 +47,17 @@ func (s *Service) GetAvailabilityRange(
 		return nil, err
 	}
 
+	// Fetch ALL bookings once
+	bookings, err := s.bookingWriter.GetBookings(
+		ctx,
+		businessID,
+		startDate.UTC(),
+		endDate.AddDate(0, 0, 1).UTC(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
 	// Iterate through UTC dates, but determine day-of-week based on business timezone
 	// This ensures we get business hours for the correct calendar day in business's local time
 	var response []DayAvailability
@@ -54,7 +66,7 @@ func (s *Service) GetAvailabilityRange(
 		// Convert UTC date to business timezone to determine which calendar day it represents
 		dLocal := d.In(loc)
 
-		slots, err := s.getDaySlots(ctx, businessID, dLocal)
+		slots, err := s.getDaySlots(ctx, businessID, dLocal, bookings)
 		if err != nil {
 			return nil, err
 		}
@@ -71,9 +83,8 @@ func (s *Service) GetAvailabilityRange(
 func (s *Service) getDaySlots(
 	ctx context.Context,
 	businessID uuid.UUID,
-
 	dateLocal time.Time,
-
+	bookings []models.Booking,
 ) ([]SlotResponse, error) {
 
 	// Use local time to determine which day of week (in business's timezone)
@@ -103,11 +114,6 @@ func (s *Service) getDaySlots(
 	endUTC := end.UTC()
 
 	blocked, err := s.blockedTimesWriter.GetBlockedTimes(ctx, nil, businessID, startUTC, endUTC)
-	if err != nil {
-		return nil, err
-	}
-
-	bookings, err := s.bookingWriter.GetBookings(ctx,  businessID, startUTC, endUTC)
 	if err != nil {
 		return nil, err
 	}
