@@ -11,4 +11,5 @@ import (
 type BusinessHourWriter interface {
 	CreateBusinessHourWithTx(ctx context.Context, tx *gorm.DB, hour *models.BusinessHour) error
 	GetBusinessHour(ctx context.Context, tx *gorm.DB, businessID uuid.UUID, dayOfWeek int) (*models.BusinessHour, error)
+	GetBusinessHours(ctx context.Context, tx *gorm.DB, businessID uuid.UUID) ([]models.BusinessHour, error)
 }

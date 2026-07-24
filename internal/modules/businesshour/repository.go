@@ -95,3 +95,23 @@ func (r *Repository) GetBusinessHour(
 
 	return &hour, nil
 }
+
+
+func (r *Repository) GetBusinessHours(
+	ctx context.Context,
+	tx *gorm.DB,
+	businessID uuid.UUID,
+) ([]models.BusinessHour, error) {
+
+	var hours []models.BusinessHour
+
+	if tx == nil {
+		tx = r.db
+	}
+
+	err := tx.WithContext(ctx).
+		Where("business_id = ?", businessID).
+		Find(&hours).Error
+
+	return hours, err
+}
