@@ -56,6 +56,7 @@ func (s *Service) GetAvailabilityRange(
 		blockedErr  error
 	)
 	var wg sync.WaitGroup
+	
 	wg.Add(4)
 
 	go func() {
@@ -112,7 +113,7 @@ func (s *Service) GetAvailabilityRange(
 	if bookingsErr != nil {
 		return nil, bookingsErr
 	}
-	
+
 	if hoursErr != nil {
 		return nil, hoursErr
 	}
