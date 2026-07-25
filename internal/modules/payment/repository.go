@@ -89,8 +89,8 @@ func (r *Repository) GetPaymentsByBusiness(
 	var payments []models.Payment
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Payment{}). // This line is already correct, no change needed
-									Where("business_id = ?", businessID)
+	query := r.db.WithContext(ctx).Model(&models.Payment{}). 
+									Where("business_id = ? AND status != ?", businessID, "pending")
 
 	if params.Search != "" {
 		like := "%" + params.Search + "%"

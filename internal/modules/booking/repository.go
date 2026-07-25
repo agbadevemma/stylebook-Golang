@@ -88,7 +88,7 @@ func (r *Repository) ListBusinessBookings(ctx context.Context, businessID uuid.U
 	var bookings []models.Booking
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Booking{}).Where("business_id = ? AND booking_status != ?", businessID, "completed")
+	query := r.db.WithContext(ctx).Model(&models.Booking{}).Where("business_id = ? AND booking_status != ?", businessID, "pending")
 
 	if params.Search != "" {
 		like := "%" + params.Search + "%"
