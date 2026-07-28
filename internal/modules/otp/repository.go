@@ -1,6 +1,7 @@
 package otp
 
 import (
+	"context"
 	"time"
 
 	"github.com/stylebookgo/agbadevemma/internal/models"
@@ -16,24 +17,40 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Create(tx *gorm.DB, otp *models.OTP) error {
+func (r *Repository) Create(
+	ctx context.Context,
+	tx *gorm.DB,
+	otp *models.OTP,
+) error {
 	db := tx
 	if db == nil {
 		db = r.db
 	}
-	return db.Create(otp).Error
+
+	return db.WithContext(ctx).Create(otp).Error
 }
 
 func (r *Repository) FindValidOTP(
+	ctx context.Context,
+	tx *gorm.DB,
 	email string,
 	otpType utils.OTPType,
 ) (*models.OTP, error) {
+	db := tx
+	if db == nil {
+		db = r.db
+	}
 
 	var otp models.OTP
 
-	err := r.db.
-		Where("email = ? AND type = ? AND used = ? AND expires_at > ?",
-			email, otpType, false, time.Now().UTC()).
+	err := db.WithContext(ctx).
+		Where(
+			"email = ? AND type = ? AND used = ? AND expires_at > ?",
+			email,
+			otpType,
+			false,
+			time.Now().UTC(),
+		).
 		Order("created_at DESC").
 		First(&otp).Error
 
@@ -44,29 +61,49 @@ func (r *Repository) FindValidOTP(
 	return &otp, nil
 }
 
-func (r *Repository) Update(tx *gorm.DB, otp *models.OTP) error {
+func (r *Repository) Update(
+	ctx context.Context,
+	tx *gorm.DB,
+	otp *models.OTP,
+) error {
 	db := tx
 	if db == nil {
 		db = r.db
 	}
-	return db.Save(otp).Error
+
+	return db.WithContext(ctx).Save(otp).Error
 }
 
-func (r *Repository) DeleteByEmailAndType(tx *gorm.DB, email string, otpType utils.OTPType) error {
+func (r *Repository) DeleteByEmailAndType(
+	ctx context.Context,
+	tx *gorm.DB,
+	email string,
+	otpType utils.OTPType,
+) error {
 	db := tx
 	if db == nil {
 		db = r.db
 	}
-	return db.Where("email = ? AND type = ?", email, otpType).Delete(&models.OTP{}).Error
+
+	return db.WithContext(ctx).
+		Where("email = ? AND type = ?", email, otpType).
+		Delete(&models.OTP{}).Error
 }
 
 func (r *Repository) FindLatestOTPByEmailAndType(
+	ctx context.Context,
+	tx *gorm.DB,
 	email string,
 	otpType utils.OTPType,
 ) (*models.OTP, error) {
-	var otp models.OTP
 
-	err := r.db.
+	db := tx
+	if db == nil {
+		db = r.db
+	}
+
+	var otp models.OTP
+	err := db.WithContext(ctx).
 		Where("email = ? AND type = ?", email, otpType).
 		Order("created_at DESC").
 		First(&otp).Error

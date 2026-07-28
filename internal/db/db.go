@@ -29,10 +29,10 @@ func Connect() *Database {
 		log.Fatal("failed to get SQL DB:", err)
 	}
 
-	sqlDB.SetMaxOpenConns(25)
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetConnMaxLifetime(5 * time.Minute)
-	sqlDB.SetConnMaxIdleTime(2 * time.Minute)
+	sqlDB.SetMaxOpenConns(50)
+	sqlDB.SetMaxIdleConns(25)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
 
 	log.Println("Database connected using URL")
 	return &Database{

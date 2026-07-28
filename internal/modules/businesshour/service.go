@@ -1,6 +1,7 @@
 package businesshour
 
 import (
+	"context"
 	"errors"
 	"log"
 
@@ -22,13 +23,15 @@ func NewService(
 }
 
 func (s *Service) ListByBusiness(
+	ctx context.Context,
 	businessID uuid.UUID,
 ) ([]models.BusinessHour, error) {
 
-	return s.repo.ListByBusiness(businessID)
+	return s.repo.ListByBusiness(ctx, businessID)
 }
 
 func (s *Service) UpdateBusinessHour(
+	ctx context.Context,
 	businessID uuid.UUID,
 	req []UpdateBusinessHourRequest,
 ) error {
@@ -39,12 +42,13 @@ func (s *Service) UpdateBusinessHour(
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			tx.Rollback()
+			tx.Rollback()	
 			panic(r)
 		}
 	}()
 	for _, r := range req {
 		hour, err := s.repo.GetByBusinessAndDay(
+			ctx,
 			tx,
 			businessID,
 			r.DayOfWeek,
@@ -66,7 +70,7 @@ func (s *Service) UpdateBusinessHour(
 		if r.IsOpen != hour.IsOpen {
 			hour.IsOpen = r.IsOpen
 		}
-		if err := s.repo.UpdateBusinessHour(tx, hour); err != nil {
+		if err := s.repo.UpdateBusinessHour(ctx, tx, hour); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -75,6 +79,7 @@ func (s *Service) UpdateBusinessHour(
 }
 
 func (s *Service) CreateBusinessHour(
+	ctx context.Context,
 	businessID uuid.UUID,
 	req []CreateBusinessHourRequest,
 ) error {
@@ -88,7 +93,7 @@ func (s *Service) CreateBusinessHour(
 			EndTime:    r.EndTime,
 		}
 
-		err := s.repo.CreateBusinessHour(newHour)
+		err := s.repo.CreateBusinessHour(ctx, s.repo.db, newHour)
 
 		if err != nil {
 			log.Printf("Error creating business hour: %v", err.Error())

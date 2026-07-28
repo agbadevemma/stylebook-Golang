@@ -1,6 +1,7 @@
 package booking
 
 import (
+	"context"
 	"errors"
 	"log"
 	"time"
@@ -15,7 +16,7 @@ import (
 	"github.com/stylebookgo/agbadevemma/internal/modules/payment"
 	"github.com/stylebookgo/agbadevemma/internal/modules/service"
 	"github.com/stylebookgo/agbadevemma/internal/utils"
-    "gorm.io/gorm/clause"
+	"gorm.io/gorm/clause"
 )
 
 type Service struct {
@@ -32,7 +33,7 @@ func NewService(repo *Repository, bookingserviceWriter bookingservice.BookingSer
 	return &Service{repo: repo, bookingserviceWriter: bookingserviceWriter, businessHourWriter: businessHourWriter, blockedTimesWriter: blockedTimesWriter, serviceWriter: serviceWriter, paymentWriter: paymentWriter, businessWriter: businessWriter}
 }
 
-func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID) (BookingResponse, error) {
+func (s *Service) CreateBooking(ctx context.Context, req *CreateBookingRequest, businessID uuid.UUID) (BookingResponse, error) {
 	tx := s.repo.db.Begin()
 
 	if tx.Error != nil {
@@ -54,7 +55,7 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	)
 
 	for _, serviceID := range req.ServiceIDs {
-		service, err := s.serviceWriter.GetServiceByID(serviceID)
+		service, err := s.serviceWriter.GetServiceByID(ctx, tx, serviceID)
 		if err != nil {
 			tx.Rollback()
 			return BookingResponse{}, err
@@ -67,7 +68,7 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	// ================================
 	// 2. GET BUSINESS + TIMEZONE
 	// ================================
-	business, err := s.businessWriter.GetBusinessByID(businessID)
+	business, err := s.businessWriter.GetBusinessByID(ctx, tx, businessID)
 	if err != nil {
 		tx.Rollback()
 		return BookingResponse{}, err
@@ -98,7 +99,7 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	dayOfWeek := int(bookingLocal.Weekday())
 
 	// Get business hours for this day of week
-	businessHour, err := s.businessHourWriter.GetBusinessHour(businessID, dayOfWeek)
+	businessHour, err := s.businessHourWriter.GetBusinessHour(ctx, tx, businessID, dayOfWeek)
 	if err != nil {
 		tx.Rollback()
 		return BookingResponse{}, errors.New("failed to fetch business hours")
@@ -169,6 +170,8 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	// 7. BLOCKED TIMES CHECK
 	// ================================
 	blocked, err := s.blockedTimesWriter.GetBlockedTimes(
+		ctx,
+		tx,
 		businessID,
 		startTimeUTC,
 		endTimeUTC,
@@ -197,7 +200,7 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 		EndTime:       endTimeUTC,
 	}
 
-	if err := s.repo.CreateBooking(tx, booking); err != nil {
+	if err := s.repo.CreateBooking(ctx, tx, booking); err != nil {
 		tx.Rollback()
 		return BookingResponse{}, err
 	}
@@ -207,7 +210,7 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	// ================================
 	for _, sID := range req.ServiceIDs {
 
-		service, err := s.serviceWriter.GetServiceByID(sID)
+		service, err := s.serviceWriter.GetServiceByID(ctx, tx, sID)
 		if err != nil {
 			tx.Rollback()
 			return BookingResponse{}, err
@@ -221,7 +224,7 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 			Price:     service.Price,
 		}
 
-		if err := s.bookingserviceWriter.CreateBookingService(tx, bookingService); err != nil {
+		if err := s.bookingserviceWriter.CreateBookingService(ctx, tx, bookingService); err != nil {
 			tx.Rollback()
 			return BookingResponse{}, err
 		}
@@ -230,7 +233,7 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	// ================================
 	// 10. PAYMENT
 	// ================================
-	paymentURL, err := s.paymentWriter.InitializePayment(tx, booking)
+	paymentURL, err := s.paymentWriter.InitializePayment(ctx, tx, booking)
 	if err != nil {
 		tx.Rollback()
 		return BookingResponse{}, err
@@ -242,13 +245,13 @@ func (s *Service) CreateBooking(req *CreateBookingRequest, businessID uuid.UUID)
 	}, tx.Commit().Error
 }
 
-func (s *Service) GetBusinessBookingStats(businessID uuid.UUID) (BookingStatsResponse, error) {
-	_, err := s.businessWriter.GetBusinessByID(businessID)
+func (s *Service) GetBusinessBookingStats(ctx context.Context, businessID uuid.UUID) (BookingStatsResponse, error) {
+	_, err := s.businessWriter.GetBusinessByID(ctx, s.repo.db, businessID)
 	if err != nil {
 		return BookingStatsResponse{}, err
 	}
 
-	total, today, pending, clients, err := s.repo.GetBusinessBookingStats(businessID)
+	total, today, pending, clients, err := s.repo.GetBusinessBookingStats(ctx, businessID)
 	if err != nil {
 		return BookingStatsResponse{}, err
 	}
@@ -261,16 +264,16 @@ func (s *Service) GetBusinessBookingStats(businessID uuid.UUID) (BookingStatsRes
 	}, nil
 }
 
-func (s *Service) ListBusinessBookings(businessID uuid.UUID, params ListBookingsParams) ([]models.Booking, int64, error) {
-	_, err := s.businessWriter.GetBusinessByID(businessID)
+func (s *Service) ListBusinessBookings(ctx context.Context, businessID uuid.UUID, params ListBookingsParams) ([]models.Booking, int64, error) {
+	_, err := s.businessWriter.GetBusinessByID(ctx, s.repo.db, businessID)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return s.repo.ListBusinessBookings(businessID, params)
+	return s.repo.ListBusinessBookings(ctx, businessID, params)
 }
 
-func (s *Service) RescheduleBooking(bookingID uuid.UUID, businessID uuid.UUID, req *RescheduleBookingRequest) error {
+func (s *Service) RescheduleBooking(ctx context.Context, bookingID uuid.UUID, businessID uuid.UUID, req *RescheduleBookingRequest) error {
 	// Validate startTime is in UTC
 	if err := utils.ValidateISO8601Timestamp(req.NewStartTime, "newStartTime"); err != nil {
 		return errors.New("invalid start time format: " + err.Error())
@@ -308,9 +311,11 @@ func (s *Service) RescheduleBooking(bookingID uuid.UUID, businessID uuid.UUID, r
 	// ================================
 	// 3. LOCK BUSINESS ROW
 	// ================================
-	if err := tx.Exec(`
-		SELECT id FROM businesses WHERE id = ? FOR UPDATE
-	`, businessID).Error; err != nil {
+	var business models.Business
+
+	if err := tx.Clauses(clause.Locking{
+		Strength: "UPDATE",
+	}).First(&business, businessID).Error; err != nil {
 		tx.Rollback()
 		return errors.New("failed to lock business")
 	}
@@ -318,11 +323,11 @@ func (s *Service) RescheduleBooking(bookingID uuid.UUID, businessID uuid.UUID, r
 	// ================================
 	// 4. GET BUSINESS DETAILS
 	// ================================
-	business, err := s.businessWriter.GetBusinessByID(businessID)
-	if err != nil {
-		tx.Rollback()
-		return errors.New("business not found")
-	}
+	// business, err := s.businessWriter.GetBusinessByID(ctx, tx, businessID)
+	// if err != nil {
+	// 	tx.Rollback()
+	// 	return errors.New("business not found")
+	// }
 
 	// Calculate new end time based on total duration
 	newEndTimeUTC := req.NewStartTime.Add(time.Duration(booking.TotalDuration) * time.Minute)
@@ -339,7 +344,7 @@ func (s *Service) RescheduleBooking(bookingID uuid.UUID, businessID uuid.UUID, r
 	dayOfWeek := int(bookingLocal.Weekday())
 
 	// Get business hours for this day of week
-	businessHour, err := s.businessHourWriter.GetBusinessHour(businessID, dayOfWeek)
+	businessHour, err := s.businessHourWriter.GetBusinessHour(ctx, tx, businessID, dayOfWeek)
 	if err != nil {
 		tx.Rollback()
 		return errors.New("business hours not configured for this day")
@@ -393,7 +398,7 @@ func (s *Service) RescheduleBooking(bookingID uuid.UUID, businessID uuid.UUID, r
 	// ================================
 	// 6. CHECK FOR BLOCKED TIMES
 	// ================================
-	blockedTimes, err := s.blockedTimesWriter.GetBlockedTimes(businessID, req.NewStartTime, newEndTimeUTC)
+	blockedTimes, err := s.blockedTimesWriter.GetBlockedTimes(ctx, tx, businessID, req.NewStartTime, newEndTimeUTC)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -410,7 +415,7 @@ func (s *Service) RescheduleBooking(bookingID uuid.UUID, businessID uuid.UUID, r
 	booking.StartTime = req.NewStartTime
 	booking.EndTime = newEndTimeUTC
 
-	if err := s.repo.UpdateBooking(tx, &booking); err != nil {
+	if err := s.repo.UpdateBooking(ctx, tx, &booking); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -418,7 +423,7 @@ func (s *Service) RescheduleBooking(bookingID uuid.UUID, businessID uuid.UUID, r
 	return tx.Commit().Error
 }
 
-func (s *Service) UpdateBookingStatus(bookingID uuid.UUID, businessID uuid.UUID, status string) error {
+func (s *Service) UpdateBookingStatus(ctx context.Context, bookingID uuid.UUID, businessID uuid.UUID, status string) error {
 	// Validate status is one of the allowed values
 	validStatuses := map[string]bool{
 		string(utils.BookingPending):   true,
@@ -444,7 +449,7 @@ func (s *Service) UpdateBookingStatus(bookingID uuid.UUID, businessID uuid.UUID,
 	}()
 
 	var booking models.Booking
-	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&booking, bookingID).Error; err != nil {
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&booking, "id = ? AND business_id = ?", bookingID, businessID).Error; err != nil {
 		tx.Rollback()
 		return errors.New("booking not found")
 	}
@@ -458,7 +463,7 @@ func (s *Service) UpdateBookingStatus(bookingID uuid.UUID, businessID uuid.UUID,
 	// Update the status
 	booking.BookingStatus = utils.BookingStatus(status)
 
-	if err := s.repo.UpdateBooking(tx, &booking); err != nil {
+	if err := s.repo.UpdateBooking(ctx, tx, &booking); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -466,20 +471,20 @@ func (s *Service) UpdateBookingStatus(bookingID uuid.UUID, businessID uuid.UUID,
 	return tx.Commit().Error
 }
 
-func (s *Service) GetBookingDetailsPublic(bookingID uuid.UUID) (*models.Booking, []models.BookingService, *models.Business, error) {
-	booking, err := s.repo.GetBookingByID(bookingID)
+func (s *Service) GetBookingDetailsPublic(ctx context.Context, bookingID uuid.UUID) (*models.Booking, []models.BookingService, *models.Business, error) {
+	booking, err := s.repo.GetBookingByID(ctx, bookingID)
 	if err != nil {
 		return nil, nil, nil, errors.New("booking not found")
 	}
 
 	// Get booking services
-	services, err := s.bookingserviceWriter.GetBookingServicesByBookingID(s.repo.db, bookingID)
+	services, err := s.bookingserviceWriter.GetBookingServicesByBookingID(ctx, s.repo.db, bookingID)
 	if err != nil {
 		return nil, nil, nil, errors.New("failed to fetch booking services")
 	}
 
 	// Get business details
-	business, err := s.businessWriter.GetBusinessByID(booking.BusinessID)
+	business, err := s.businessWriter.GetBusinessByID(ctx, s.repo.db, booking.BusinessID)
 	if err != nil {
 		return nil, nil, nil, errors.New("failed to fetch business details")
 	}

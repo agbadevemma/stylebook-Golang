@@ -1,6 +1,8 @@
 package businesshour
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 	"github.com/stylebookgo/agbadevemma/internal/models"
 	"gorm.io/gorm"
@@ -14,19 +16,26 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) CreateBusinessHour(hour *models.BusinessHour) error {
-	return r.db.Create(hour).Error
+func (r *Repository) CreateBusinessHour(ctx context.Context,tx *gorm.DB, hour *models.BusinessHour) error {
+	if tx == nil {
+		tx = r.db
+	}
+	return tx.WithContext(ctx).Create(hour).Error
 }
 
-func (r *Repository) CreateBusinessHourWithTx(tx *gorm.DB, hour *models.BusinessHour) error {
-	return tx.Create(hour).Error
+func (r *Repository) CreateBusinessHourWithTx(ctx context.Context, tx *gorm.DB, hour *models.BusinessHour) error {
+	return tx.WithContext(ctx).Create(hour).Error
 }
 
-func (r *Repository) UpdateBusinessHour(tx *gorm.DB, hour *models.BusinessHour) error {
-	return tx.Save(hour).Error
+func (r *Repository) UpdateBusinessHour(ctx context.Context, tx *gorm.DB, hour *models.BusinessHour) error {
+	if tx == nil {
+		tx = r.db
+	}
+	return tx.WithContext(ctx).Save(hour).Error
 }
 
 func (r *Repository) GetByBusinessAndDay(
+	ctx context.Context,
 	tx *gorm.DB,
 	businessID uuid.UUID,
 	day *int,
@@ -34,7 +43,10 @@ func (r *Repository) GetByBusinessAndDay(
 
 	var hour models.BusinessHour
 
-	err := tx.
+	if tx == nil {
+		tx = r.db
+	}
+	err := tx.WithContext(ctx).
 		Where("business_id = ? AND day_of_week = ?", businessID, day).
 		First(&hour).Error
 
@@ -46,12 +58,13 @@ func (r *Repository) GetByBusinessAndDay(
 }
 
 func (r *Repository) ListByBusiness(
+	ctx context.Context,	
 	businessID uuid.UUID,
 ) ([]models.BusinessHour, error) {
 
 	var hours []models.BusinessHour
 
-	err := r.db.
+	err := r.db.WithContext(ctx).
 		Where("business_id = ?", businessID).
 		Order("day_of_week ASC").
 		Find(&hours).Error
@@ -60,13 +73,18 @@ func (r *Repository) ListByBusiness(
 }
 
 func (r *Repository) GetBusinessHour(
+	ctx context.Context,
+	tx *gorm.DB,
 	businessID uuid.UUID,
 	dayOfWeek int,
 ) (*models.BusinessHour, error) {
 
 	var hour models.BusinessHour
 
-	err := r.db.
+	if tx == nil {
+		tx = r.db
+	}
+	err := tx.WithContext(ctx).
 		Where("business_id = ? AND day_of_week = ?", businessID, dayOfWeek).
 		First(&hour).Error
 
@@ -76,4 +94,24 @@ func (r *Repository) GetBusinessHour(
 	}
 
 	return &hour, nil
+}
+
+
+func (r *Repository) GetBusinessHours(
+	ctx context.Context,
+	tx *gorm.DB,
+	businessID uuid.UUID,
+) ([]models.BusinessHour, error) {
+
+	var hours []models.BusinessHour
+
+	if tx == nil {
+		tx = r.db
+	}
+
+	err := tx.WithContext(ctx).
+		Where("business_id = ?", businessID).
+		Find(&hours).Error
+
+	return hours, err
 }

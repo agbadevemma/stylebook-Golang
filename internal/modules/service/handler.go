@@ -33,7 +33,7 @@ func (h *Handler) CreateService(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	err := h.service.CreateService(&req, businessID)
+	err := h.service.CreateService(c.Request.Context(), &req, businessID)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
@@ -54,7 +54,7 @@ func (h *Handler) GetServiceByID(c *gin.Context) {
 		return
 	}
 
-	service, err := h.service.GetServiceByID(parsedID)
+	service, err := h.service.GetServiceByID(c.Request.Context(), parsedID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Service not found"))
 		return
@@ -86,7 +86,7 @@ func (h *Handler) ListServices(c *gin.Context) {
 		return
 	}
 
-	services, err := h.service.ListServices(businessID)
+	services, err := h.service.ListServices(c.Request.Context(), businessID)
 	if err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
@@ -129,7 +129,7 @@ func (h *Handler) ListPublicServices(c *gin.Context) {
 		return
 	}
 
-	services, err := h.service.ListServices(businessID)
+	services, err := h.service.ListServices(c.Request.Context(), businessID)
 	if err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
@@ -174,7 +174,7 @@ func (h *Handler) UpdateService(c *gin.Context) {
 		return
 	}
 
-	_, err = h.service.GetServiceByID(parsedID)
+	_, err = h.service.GetServiceByID(c.Request.Context(), parsedID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Service not found"))
 		return
@@ -185,7 +185,7 @@ func (h *Handler) UpdateService(c *gin.Context) {
 		return
 	}
 
-	err = h.service.UpdateService(&req, parsedID)
+	err = h.service.UpdateService(c.Request.Context(), &req, parsedID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
@@ -206,13 +206,13 @@ func (h *Handler) DeleteService(c *gin.Context) {
 		return
 	}
 
-	_, err = h.service.GetServiceByID(parsedID)
+	_, err = h.service.GetServiceByID(c.Request.Context(), parsedID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Service not found"))
 		return
 	}
 
-	err = h.service.DeleteService(parsedID)
+	err = h.service.DeleteService(c.Request.Context(), 	parsedID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return

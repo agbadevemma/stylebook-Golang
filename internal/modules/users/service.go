@@ -1,8 +1,10 @@
 package users
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -29,31 +31,8 @@ func NewService(repo *Repository, bus business.BusinessWriter, busHour businessh
 	return &Service{repo: repo, businessWriter: bus, businessHourWriter: busHour, otpWriter: otpWriter, emailService: emailService}
 }
 
-func (s *Service) Signup(req *SignupRequest) error {
-
-	if _, err := s.repo.GetUserbyEmail(req.Email); err == nil {
-		return errors.New("user with this email already exists")
-	}
-
-	if _, err := s.repo.GetUserByPhone(req.Phone); err == nil {
-		return errors.New("user with this phone number already exists")
-	}
-
-	var businessID *uuid.UUID
-
-	if req.Role == utils.Barber {
-		if req.BusinessID == uuid.Nil {
-			return errors.New("business ID is required for barbers")
-		}
-
-		if _, err := s.businessWriter.GetBusinessByID(req.BusinessID); err != nil {
-			return errors.New("business not found")
-		}
-
-		businessID = &req.BusinessID
-	}
-
-	tx := s.repo.db.Begin()
+func (s *Service) Signup(ctx context.Context, req *SignupRequest) error {
+	tx := s.repo.db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return tx.Error
 	}
@@ -64,6 +43,30 @@ func (s *Service) Signup(req *SignupRequest) error {
 			panic(r)
 		}
 	}()
+
+	if _, err := s.repo.GetUserbyEmail(ctx, tx, req.Email); err == nil {
+		tx.Rollback()
+		return errors.New("user with this email already exists")
+	}
+
+	if _, err := s.repo.GetUserByPhone(ctx, tx, req.Phone); err == nil {
+		tx.Rollback()
+		return errors.New("user with this phone number already exists")
+	}
+
+	var businessID *uuid.UUID
+
+	if req.Role == utils.Barber {
+		if req.BusinessID == uuid.Nil {
+			return errors.New("business ID is required for barbers")
+		}
+
+		if _, err := s.businessWriter.GetBusinessByID(ctx, s.repo.db, req.BusinessID); err != nil {
+			return errors.New("business not found")
+		}
+
+		businessID = &req.BusinessID
+	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword(
 		[]byte(req.Password),
@@ -83,7 +86,7 @@ func (s *Service) Signup(req *SignupRequest) error {
 		BusinessID: businessID,
 	}
 
-	if err := s.repo.CreateUser(tx, user); err != nil {
+	if err := s.repo.CreateUser(ctx, tx, user); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -94,7 +97,7 @@ func (s *Service) Signup(req *SignupRequest) error {
 			OwnerID: user.ID,
 		}
 
-		if err := s.businessWriter.CreateBusiness(tx, business); err != nil {
+		if err := s.businessWriter.CreateBusiness(ctx, tx, business); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -151,14 +154,14 @@ func (s *Service) Signup(req *SignupRequest) error {
 			},
 		}
 		for _, hour := range hours {
-			if err := s.businessHourWriter.CreateBusinessHourWithTx(tx, &hour); err != nil {
+			if err := s.businessHourWriter.CreateBusinessHourWithTx(ctx, tx, &hour); err != nil {
 
 				tx.Rollback()
 				return err
 			}
 		}
 	}
-	if err := s.otpWriter.SendOTP(tx, req.Email, utils.OTPTypeEmailVerification); err != nil {
+	if err := s.otpWriter.SendOTP(ctx, tx, req.Email, utils.OTPTypeEmailVerification); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -170,8 +173,8 @@ func (s *Service) Signup(req *SignupRequest) error {
 	return nil
 }
 
-func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
-	tx := s.repo.db.Begin()
+func (s *Service) VerifyOTP(ctx context.Context, req *VerifyOTPRequest) error {
+	tx := s.repo.db.WithContext(ctx).Begin()
 
 	if tx.Error != nil {
 		return tx.Error
@@ -184,13 +187,14 @@ func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
 		}
 	}()
 
-	err := s.otpWriter.VerifyOTP(tx, req.Email, req.Code, req.Type)
+	err := s.otpWriter.VerifyOTP(ctx, tx, req.Email, req.Code, req.Type)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
-	user, err := s.repo.GetUserbyEmail(req.Email)
+	user, err := s.repo.GetUserbyEmail(ctx, tx, req.Email)
 	if err != nil {
+		tx.Rollback()
 		return err
 	}
 	if user.IsEmailVerified {
@@ -201,7 +205,7 @@ func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
 	user.IsEmailVerified = true
 	user.EmailVerifiedAt = &now
 
-	if err := s.repo.UpdateUser(tx, user); err != nil {
+	if err := s.repo.UpdateUser(ctx, tx, user); err != nil {
 		tx.Rollback()
 		return errors.New("failed to update password")
 	}
@@ -211,32 +215,35 @@ func (s *Service) VerifyOTP(req *VerifyOTPRequest) error {
 	}
 
 	// Delete OTP records for this email after successful verification
-	err = s.otpWriter.DeleteOTPRecords(nil, req.Email, req.Type)
+	err = s.otpWriter.DeleteOTPRecords(ctx, tx, req.Email, req.Type)
 	if err != nil {
 		return errors.New("failed to delete OTP records")
 	}
 
-	// Send welcome email asynchronously after verification
+	// Send welcome email asynchronously with timeout
+	emailCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
 	go func() {
+		defer cancel()
 		loginUrl := fmt.Sprintf("%s/login", os.Getenv("FRONTEND_URL"))
 		accountVerifiedData := email.AccountVerifiedData{
 			CustomerName:  user.Name,
 			CustomerEmail: user.Email,
 			LoginURL:      loginUrl,
 		}
-		if err := s.emailService.SendAccountVerified(user.Email, accountVerifiedData); err != nil {
+		if err := s.emailService.SendAccountVerified(emailCtx, user.Email, accountVerifiedData); err != nil {
 			// Log error but don't fail the verification
 			// In production, this should be logged to a proper logger
-			_ = err
+			log.Printf("failed to send verify otp email: %v", err)
+
 		}
 	}()
 
 	return nil
-
 }
 
-func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
-	tx := s.repo.db.Begin()
+func (s *Service) ChangePassword(ctx context.Context, req *ChangePasswordRequest) error {
+	tx := s.repo.db.WithContext(ctx).Begin()
 
 	if tx.Error != nil {
 		return tx.Error
@@ -249,7 +256,7 @@ func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
 		}
 	}()
 
-	user, err := s.repo.GetUserbyEmail(req.Email)
+	user, err := s.repo.GetUserbyEmail(ctx, tx, req.Email)
 	if err != nil {
 		tx.Rollback()
 		return errors.New("user not found")
@@ -273,14 +280,14 @@ func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
 		return errors.New("error occured while hashing")
 	}
 
-	if err := s.otpWriter.VerifyOTP(tx, user.Email, req.Code, utils.OTPTypePasswordReset); err != nil {
+	if err := s.otpWriter.VerifyOTP(ctx, tx, user.Email, req.Code, utils.OTPTypePasswordReset); err != nil {
 		tx.Rollback()
 		return errors.New(err.Error())
 	}
 	user.Password = string(hashedPassword)
 	now := time.Now()
 	user.PasswordChangedAt = &now
-	if err := s.repo.UpdateUser(tx, user); err != nil {
+	if err := s.repo.UpdateUser(ctx, tx, user); err != nil {
 		tx.Rollback()
 		return errors.New("failed to update password")
 	}
@@ -289,15 +296,15 @@ func (s *Service) ChangePassword(req *ChangePasswordRequest) error {
 		return err
 	}
 
-	err = s.otpWriter.DeleteOTPRecords(nil, user.Email, utils.OTPTypePasswordReset)
+	err = s.otpWriter.DeleteOTPRecords(ctx, tx, user.Email, utils.OTPTypePasswordReset)
 	if err != nil {
 		return errors.New("failed to delete OTP records")
 	}
 	return nil
 }
 
-func (s *Service) Login(req *LoginRequest) (string, *models.Business, error) {
-	user, err := s.repo.GetUserbyEmail(req.Email)
+func (s *Service) Login(ctx context.Context, req *LoginRequest) (string, *models.Business, error) {
+	user, err := s.repo.GetUserbyEmail(ctx, s.repo.db, req.Email)
 	if err != nil {
 		return "", nil, errors.New("invalid email or password")
 	}
@@ -308,7 +315,7 @@ func (s *Service) Login(req *LoginRequest) (string, *models.Business, error) {
 	if err != nil {
 		return "", nil, errors.New("invalid email or password")
 	}
-	business, err := s.businessWriter.GetBusinessByUserID(user.ID)
+	business, err := s.businessWriter.GetBusinessByUserID(ctx, user.ID)
 	if err != nil {
 		return "", nil, errors.New("business not found")
 	}

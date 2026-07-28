@@ -24,7 +24,7 @@ func (h *Handler) SendOtp(c *gin.Context) {
 		return
 	}
 
-	err := h.service.SendOTP(nil, req.Email, req.Type)
+	err := h.service.SendOTP(c.Request.Context(), nil, req.Email, req.Type)
 	if err != nil {
 		log.Printf("Error -->> %v", err.Error())
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse(err.Error()))

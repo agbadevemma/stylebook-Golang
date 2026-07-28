@@ -27,6 +27,7 @@ func (h *Handler) ListBusinessHours(c *gin.Context) {
 	}
 
 	hours, err := h.service.ListByBusiness(
+		c.Request.Context(),
 		businessID,
 	)
 	res := make([]BusinessHoursResponse, 0, len(hours))
@@ -67,7 +68,7 @@ func (h *Handler) CreateBusinessHour(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	err := h.service.CreateBusinessHour(businessID, req)
+	err := h.service.CreateBusinessHour(c.Request.Context(), businessID, req)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
@@ -102,6 +103,7 @@ func (h *Handler) UpdateBusinessHour(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateBusinessHour(
+		c.Request.Context(),
 		businessID,
 		req.Hours,
 	); err != nil {

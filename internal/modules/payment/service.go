@@ -1,6 +1,7 @@
 package payment
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/hex"
@@ -32,9 +33,9 @@ func NewService(repo *Repository, provider *Provider, ledgerWriter ledger.Ledger
 	return &Service{repo: repo, provider: provider, ledgerWriter: ledgerWriter, business: business, emailWriter: emailWriter}
 }
 
-func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (string, error) {
+func (s *Service) InitializePayment(ctx context.Context, tx *gorm.DB, booking *models.Booking) (string, error) {
 
-	existingPayment, err := s.repo.GetPaymentByBookingID(tx, booking.ID)
+	existingPayment, err := s.repo.GetPaymentByBookingID(ctx, tx, booking.ID)
 	if err == nil && existingPayment != nil {
 		if existingPayment.Status == utils.PaymentSuccess {
 			return "", errors.New("payment already completed for this booking")
@@ -45,7 +46,7 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 		}
 	}
 
-	serviceAmount, err := s.repo.CalculateBookingAmount(tx, booking.ID)
+	serviceAmount, err := s.repo.CalculateBookingAmount(ctx, tx, booking.ID)
 	if err != nil {
 		tx.Rollback()
 		return "", errors.New("failed to calculate booking amount")
@@ -70,12 +71,12 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 		Provider:      "paystack",
 	}
 
-	if err := s.repo.CreatePayment(tx, payment); err != nil {
+	if err := s.repo.CreatePayment(ctx, tx, payment); err != nil {
 		tx.Rollback()
 		return "", errors.New("failed to create payment record")
 	}
 
-	business, err := s.business.GetBusinessByID(booking.BusinessID)
+	business, err := s.business.GetBusinessByID(ctx, s.repo.db, booking.BusinessID)
 	if err != nil {
 		tx.Rollback()
 		return "", errors.New("failed to get business details")
@@ -89,6 +90,7 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 	var res *PaystackResponse
 
 	res, err = s.provider.InitializePaymentWithSplit(
+		ctx,
 		payment.Email,
 		payment.Amount,
 		payment.Reference,
@@ -105,7 +107,7 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 	payment.AuthorizationURL = res.Data.AuthorizationURL
 	payment.AccessCode = res.Data.AccessCode
 
-	if err := s.repo.UpdatePayment(tx, payment); err != nil {
+	if err := s.repo.UpdatePayment(ctx, tx, payment); err != nil {
 		tx.Rollback()
 		return "", errors.New("failed to update payment initialization")
 	}
@@ -113,28 +115,28 @@ func (s *Service) InitializePayment(tx *gorm.DB, booking *models.Booking) (strin
 	return res.Data.AuthorizationURL, nil
 }
 
-func (s *Service) CreateBusinessSubaccount(businessID uuid.UUID, req CreateSubaccount) (string, error) {
-	business, err := s.business.GetBusinessByID(businessID)
+func (s *Service) CreateBusinessSubaccount(ctx context.Context, businessID uuid.UUID, req CreateSubaccount) (string, error) {
+	business, err := s.business.GetBusinessByID(ctx, s.repo.db, businessID)
 	if err != nil {
 		return "", errors.New("failed to get business details")
 	}
 
 	var res *CreateSubaccountResponse
 	if business.SubaccountCode != "" {
-		res, err = s.provider.UpdateSubaccount(business.SubaccountCode, business.Name, req.BankCode, req.AccountNumber)
+		res, err = s.provider.UpdateSubaccount(ctx, business.SubaccountCode, business.Name, req.BankCode, req.AccountNumber)
 		if err != nil {
 			return "", err
 		}
 
 	} else {
 
-		res, err = s.provider.CreateSubaccount(business.Name, req.BankCode, req.AccountNumber)
+		res, err = s.provider.CreateSubaccount(ctx, business.Name, req.BankCode, req.AccountNumber)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	if err := s.business.UpdateBusinessBankDetails(businessID, req.AccountName, req.AccountNumber, res.Data.SubaccountCode, req.BankName, req.BankCode); err != nil {
+	if err := s.business.UpdateBusinessBankDetails(ctx, businessID, req.AccountName, req.AccountNumber, res.Data.SubaccountCode, req.BankName, req.BankCode); err != nil {
 		return "", errors.New("failed to save subaccount code")
 	}
 
@@ -151,13 +153,13 @@ func (s *Service) VerifySignature(payload []byte, signature string) bool {
 	return expected == signature
 }
 
-func (s *Service) HandleEvent(event utils.PaystackWebhookEvent) error {
+func (s *Service) HandleEvent(ctx context.Context, event utils.PaystackWebhookEvent) error {
 
 	switch event.Event {
 
 	// 💳 PAYMENT EVENTS
 	case "charge.success", "charge.failed", "charge.abandoned", "charge.refunded":
-		return s.handlePaymentEvent(event)
+		return s.handlePaymentEvent(ctx, event)
 
 	// 💸 TRANSFER EVENTS
 	case "transfer.success", "transfer.failed", "transfer.reversed":
@@ -170,7 +172,7 @@ func (s *Service) HandleEvent(event utils.PaystackWebhookEvent) error {
 	}
 }
 
-func (s *Service) handlePaymentEvent(event utils.PaystackWebhookEvent) error {
+func (s *Service) handlePaymentEvent(ctx context.Context, event utils.PaystackWebhookEvent) error {
 	tx := s.repo.db.Begin()
 	if tx.Error != nil {
 		return tx.Error
@@ -183,7 +185,7 @@ func (s *Service) handlePaymentEvent(event utils.PaystackWebhookEvent) error {
 		}
 	}()
 
-	payment, err := s.repo.GetPaymentByReference(tx, event.Data.Reference)
+	payment, err := s.repo.GetPaymentByReference(ctx, tx, event.Data.Reference)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -192,16 +194,16 @@ func (s *Service) handlePaymentEvent(event utils.PaystackWebhookEvent) error {
 	switch event.Event {
 
 	case "charge.success":
-		return s.handlePaymentSuccess(tx, payment)
+		return s.handlePaymentSuccess(ctx, tx, payment)
 
 	case "charge.failed":
-		return s.handlePaymentFailed(tx, payment)
+		return s.handlePaymentFailed(ctx, tx, payment)
 
 	case "charge.abandoned":
-		return s.handlePaymentAbandoned(tx, payment)
+		return s.handlePaymentAbandoned(ctx, tx, payment)
 
 	case "refund.processed":
-		return s.handlePaymentRefund(tx, payment)
+		return s.handlePaymentRefund(ctx, tx, payment)
 
 	default:
 		tx.Rollback()
@@ -209,7 +211,7 @@ func (s *Service) handlePaymentEvent(event utils.PaystackWebhookEvent) error {
 	}
 }
 
-func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) error {
+func (s *Service) handlePaymentSuccess(ctx context.Context, tx *gorm.DB, payment *models.Payment) error {
 
 	if payment.Status == utils.PaymentSuccess {
 		tx.Rollback()
@@ -217,6 +219,7 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 	}
 
 	exists, err := s.ledgerWriter.LedgerExistsByReference(
+		ctx,
 		tx,
 		payment.Reference,
 		utils.LedgerCredit,
@@ -234,7 +237,7 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 			CreatedAt:   time.Now().UTC(),
 		}
 
-		if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
+		if err := s.ledgerWriter.CreateLedger(ctx, tx, ledger); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -252,12 +255,13 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 	payment.IsVerified = true
 	payment.PaidAt = &now
 
-	if err := s.repo.UpdatePayment(tx, payment); err != nil {
+	if err := s.repo.UpdatePayment(ctx, tx, payment); err != nil {
 		tx.Rollback()
 		return err
 	}
 
 	if err := s.repo.UpdateBookingStatus(
+		ctx,
 		tx,
 		payment.BookingID,
 		utils.BookingConfirmed,
@@ -274,19 +278,19 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 
 	// Send confirmation email asynchronously (don't block if it fails)
 	go func() {
-		booking, err := s.repo.GetBookingByID(payment.BookingID)
+		booking, err := s.repo.GetBookingByID(ctx, payment.BookingID)
 		if err != nil {
 			log.Printf("failed to fetch booking for email: %v", err)
 			return
 		}
 
-		services, err := s.repo.GetBookingServices(payment.BookingID)
+		services, err := s.repo.GetBookingServices(ctx, payment.BookingID)
 		if err != nil {
 			log.Printf("failed to fetch booking services for email: %v", err)
 			return
 		}
 
-		business, err := s.business.GetBusinessByID(payment.BusinessID)
+		business, err := s.business.GetBusinessByID(ctx, s.repo.db, payment.BusinessID)
 		if err != nil {
 			log.Printf("failed to fetch business for email: %v", err)
 			return
@@ -332,7 +336,7 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 			CallbackURL:     callbackURL,
 		}
 
-		if err := s.emailWriter.SendBookingConfirmation(payment.Email, emailData); err != nil {
+		if err := s.emailWriter.SendBookingConfirmation(ctx, payment.Email, emailData); err != nil {
 			log.Printf("failed to send booking confirmation email: %v", err)
 		}
 	}()
@@ -340,7 +344,7 @@ func (s *Service) handlePaymentSuccess(tx *gorm.DB, payment *models.Payment) err
 	return nil
 }
 
-func (s *Service) handlePaymentFailed(tx *gorm.DB, payment *models.Payment) error {
+func (s *Service) handlePaymentFailed(ctx context.Context, tx *gorm.DB, payment *models.Payment) error {
 
 	if payment.Status == utils.PaymentSuccess {
 		tx.Rollback()
@@ -349,7 +353,7 @@ func (s *Service) handlePaymentFailed(tx *gorm.DB, payment *models.Payment) erro
 
 	payment.Status = utils.PaymentFailed
 
-	if err := s.repo.UpdatePayment(tx, payment); err != nil {
+	if err := s.repo.UpdatePayment(ctx, tx, payment); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -357,7 +361,7 @@ func (s *Service) handlePaymentFailed(tx *gorm.DB, payment *models.Payment) erro
 	return tx.Commit().Error
 }
 
-func (s *Service) handlePaymentAbandoned(tx *gorm.DB, payment *models.Payment) error {
+func (s *Service) handlePaymentAbandoned(ctx context.Context, tx *gorm.DB, payment *models.Payment) error {
 
 	if payment.Status == utils.PaymentSuccess {
 		tx.Rollback()
@@ -366,7 +370,7 @@ func (s *Service) handlePaymentAbandoned(tx *gorm.DB, payment *models.Payment) e
 
 	payment.Status = utils.PaymentAbandoned
 
-	if err := s.repo.UpdatePayment(tx, payment); err != nil {
+	if err := s.repo.UpdatePayment(ctx, tx, payment); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -374,7 +378,7 @@ func (s *Service) handlePaymentAbandoned(tx *gorm.DB, payment *models.Payment) e
 	return tx.Commit().Error
 }
 
-func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) error {
+func (s *Service) handlePaymentRefund(ctx context.Context, tx *gorm.DB, payment *models.Payment) error {
 
 	if payment.Status == utils.PaymentRefunded {
 		tx.Rollback()
@@ -383,12 +387,13 @@ func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) erro
 
 	payment.Status = utils.PaymentRefunded
 
-	if err := s.repo.UpdatePayment(tx, payment); err != nil {
+	if err := s.repo.UpdatePayment(ctx, tx, payment); err != nil {
 		tx.Rollback()
 		return err
 	}
 
 	if err := s.repo.UpdateBookingStatus(
+		ctx,
 		tx,
 		payment.BookingID,
 		utils.BookingCancelled,
@@ -399,6 +404,7 @@ func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) erro
 	}
 
 	exists, err := s.ledgerWriter.LedgerExistsByReference(
+		ctx,
 		tx,
 		payment.Reference+"-refund",
 		utils.LedgerDebit,
@@ -420,7 +426,7 @@ func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) erro
 			CreatedAt:   time.Now().UTC(),
 		}
 
-		if err := s.ledgerWriter.CreateLedger(tx, ledger); err != nil {
+		if err := s.ledgerWriter.CreateLedger(ctx, tx, ledger); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -430,17 +436,18 @@ func (s *Service) handlePaymentRefund(tx *gorm.DB, payment *models.Payment) erro
 }
 
 func (s *Service) GetBusinessTransactions(
+	ctx context.Context,
 	businessID uuid.UUID,
 	params ListTransactionsParams,
 ) ([]models.Payment, int64, error) {
 
-	return s.repo.GetPaymentsByBusiness(businessID, params)
+	return s.repo.GetPaymentsByBusiness(ctx, businessID, params)
 }
 
-func (s *Service) ResolveBankAccount(accountNumber, bankCode string) (*BankResolveResponse, error) {
-	return s.provider.ResolveBankAccount(accountNumber, bankCode)
+func (s *Service) ResolveBankAccount(ctx context.Context, accountNumber, bankCode string) (*BankResolveResponse, error) {
+	return s.provider.ResolveBankAccount(ctx, accountNumber, bankCode)
 }
 
-func (s *Service) GetBanks() ([]Bank, error) {
-	return s.provider.GetBanks()
+func (s *Service) GetBanks(ctx context.Context) ([]Bank, error) {
+	return s.provider.GetBanks(ctx)
 }
