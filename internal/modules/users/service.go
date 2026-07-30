@@ -209,10 +209,6 @@ func (s *Service) VerifyOTP(ctx context.Context, req *VerifyOTPRequest) error {
 		tx.Rollback()
 		return errors.New("failed to update password")
 	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return err
-	}
 
 	// Delete OTP records for this email after successful verification
 	err = s.otpWriter.DeleteOTPRecords(ctx, tx, req.Email, req.Type)
@@ -220,6 +216,10 @@ func (s *Service) VerifyOTP(ctx context.Context, req *VerifyOTPRequest) error {
 		return errors.New("failed to delete OTP records")
 	}
 
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 	// Send welcome email asynchronously with timeout
 	emailCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
@@ -291,14 +291,15 @@ func (s *Service) ChangePassword(ctx context.Context, req *ChangePasswordRequest
 		tx.Rollback()
 		return errors.New("failed to update password")
 	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return err
-	}
 
 	err = s.otpWriter.DeleteOTPRecords(ctx, tx, user.Email, utils.OTPTypePasswordReset)
 	if err != nil {
 		return errors.New("failed to delete OTP records")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
 	}
 	return nil
 }
