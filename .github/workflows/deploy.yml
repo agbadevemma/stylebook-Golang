@@ -31,7 +31,7 @@ jobs:
             go build -o app ./cmd/api
 
             echo "Restarting API service..."
-            sudo systemctl restart stylebook-api
+            sudo -n systemctl restart stylebook-api
 
             echo "Checking service..."
-            sudo systemctl is-active stylebook-api
+            sudo -n systemctl is-active stylebook-api
