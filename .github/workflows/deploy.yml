@@ -20,7 +20,12 @@ jobs:
 
           script: |
             set -e
-            echo "Current user: $(whoami)"
+            
+            echo "Logged in as:"
+            whoami
+            
+            echo "User details:"
+            id
 
             cd ~/stylebook-Golang
 
